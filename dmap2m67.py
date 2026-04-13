@@ -1,0 +1,584 @@
+#! /usr/bin/env python3
+#  -*- coding: utf-8 -*-
+
+''' App to convert image as depth-map to M67 Analog Output GCODE for PWM laser 
+    raster using Mesa hardware. 
+    
+    dmap2m67 - Depth-Map to M67 G-Code Converter
+
+    Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
+    This app is based on work by:
+        raggielyle1           2026 Bruce Lyle   raggielyle1@gmail.com
+        (https://forum.linuxcnc.org/plasma-laser/35064-new-laser-build-raster-engraving#342700)
+              
+    Version 0.01    20260408 - Initial code; main routine by Bruce.
+        Start design around Qt5; start basic Qt5 GUI.  Rework for PyQt6.
+        Design import section to alert missing dependencies (pyqt6, pillow.)
+        Implement QSettings to load and save options between runs.
+        Change default font to 12pt for better readability on touch screens.
+        Create touch UI dialog for data entry on touchscreens.
+        TODO: looks fine on Debian, but on Arch, the GUI is misaligned...
+        TODO: if any M67's are sequentially identical (redundant), omit them!
+              can likely omit irrelevant moves too, reducing output file size.
+        TODO: img_luma needs to have a QPixmap to preview the processed image
+        TODO: img_out is a graphicsView to preview the generated GCODE
+'''
+
+#from cProfile import label
+import sys
+import os
+
+# ensure only python3 is attempted...
+VERSION = sys.version_info[0]
+if VERSION != 3:
+    print("Python version 3.xx required!  Get from: https://www.python.org/downloads/")
+    exit()
+
+# try to import dependencies, and if not found, alert user
+try:    # https://pypi.org/project/pyqt6/
+    from PyQt6 import uic, QtGui
+except ImportError or ModuleNotFoundError:
+    print("\nPyQt6 bindings missing!  Please install:")
+    print("  Debian:  sudo apt install python3-pyqt6 libxcb-cursor0")
+    print("  Arch:    pamac install python-pyqt6")
+    print("  Mac:     brew install pyqt6")
+    print("  Windows: pip install pyqt6")
+    exit()
+
+from PyQt6 import QtCore
+from PyQt6.QtWidgets import QMainWindow, QFileDialog, QDialog, QApplication, QLineEdit
+from PyQt6.QtCore import QPoint, QSettings, QSize
+from PyQt6.QtGui import QFont, QPixmap
+
+try:    # https://pypi.org/project/pillow/
+    from PIL import Image
+except ImportError or ModuleNotFoundError:
+    print("\nPython Image Library (pillow) missing!  Please install:")
+    print("  Debian:  sudo apt install python3-pil")
+    print("  Arch:    pamac install python-pillow")
+    print("  Mac:     brew install python3-pil")
+    print("  Windows: pip install pillow")
+    exit()
+
+version = '0.01'
+
+
+class dmap2m67GUI(QMainWindow):
+    #img = ImageFile = None  # preset vars
+    #m = 1.0  # metric multiplier; 1.0 for inches, 25.4 for mm
+
+    def __init__(self):
+        super(dmap2m67GUI, self).__init__() # define self as an app
+        #main = uic.loadUi("dmap2m67.ui", self)  # load GUI
+        uic.loadUi("dmap2m67.ui", self)  # load GUI
+        self.load_settings()    # restore settings
+        self.show()     # show main window quickly
+        # setup links from control interaction to code
+        self.pb_open.clicked.connect(self.open)
+        self.rb_mm.clicked.connect(self.rb_mm_changed)
+        self.rb_in.clicked.connect(self.rb_in_changed)
+        # TODO: may need to change these to "editingFinished" from "returnPressed"
+        self.le_target_width.editingFinished.connect(self.targetwidth)
+        self.le_target_dp.editingFinished.connect(self.targetdp)
+        # don't need any interaction here...
+        #self.le_feedrate.editingFinished.connect(self.feedrate)
+        #self.le_safe_z.editingFinished.connect(self.safez)
+        #self.le_work_z.editingFinished.connect(self.workz)
+        for le in self.findChildren(QLineEdit):
+            if le.objectName().startswith("le_"):
+                le.mousePressEvent = lambda event, line_edit=le: self.le_mousePressEvent(line_edit, event)
+        #self.le_power_min.editingFinished.connect(self.powermin)
+        #self.le_power_max.editingFinished.connect(self.powermax)
+        self.pb_saveas.clicked.connect(self.saveas)
+        self.pb_convert.clicked.connect(self.convert)
+
+    def load_settings(self):    # (~/.config/RDTSC/dmap2m67.conf)
+        self.settings = QSettings('RDTSC', 'dmap2m67')
+        if not self.settings.contains('window_size'):   # if none, default
+            self.settings.setValue('window_size', QSize(1000, 745))
+            self.settings.setValue('window_position', QPoint(0, 0))
+            self.settings.setValue('file_in', 'FileIn.png')
+            self.settings.setValue('units', 'in')
+            self.settings.setValue('image_dp', 72)
+            self.settings.setValue('target_dp', 72)
+            self.settings.setValue('target_width', 2.25) # others are calculated
+            self.settings.setValue('feed_rate', 50)
+            self.settings.setValue('safe_z', -5.0)
+            self.settings.setValue('work_z', -8.0)
+            self.settings.setValue('min_power', 0)
+            self.settings.setValue('max_power', 999)
+            self.settings.setValue('vertical', False)
+            self.settings.setValue('touch', False)
+            self.settings.setValue('file_out', 'FileOut.ngc')
+            # get window metrics for initial centering...
+            qtRectangle = self.frameGeometry()
+            centerPoint = QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
+            qtRectangle.moveCenter(centerPoint)
+            self.move(qtRectangle.topLeft())
+            # center this window in display
+            centerPoint = QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
+            qtRectangle.moveCenter(centerPoint)
+            self.move(qtRectangle.topLeft())
+        # else restore previous window size and position
+        self.resize(self.settings.value('window_size'))
+        self.move(self.settings.value('window_position'))
+        # and rest of values
+        self.full_file_in = self.settings.value('file_in')
+        head, tail = os.path.split(self.full_file_in)
+        self.lb_file_in.setText(tail)   # update display
+        if 'in' == self.settings.value('units'): 
+            self.rb_in.setChecked(True)
+            self.rb_mm.setChecked(False)
+            self.m = 1.0
+        else: 
+            self.rb_in.setChecked(False)
+            self.rb_mm.setChecked(True)
+            self.m = 25.4
+        self.le_image_dp.setText(self.settings.value('image_dp'))
+        self.le_target_width.setText(self.settings.value('target_width'))
+        self.le_target_dp.setText(self.settings.value('target_dp'))
+        self.le_feedrate.setText(self.settings.value('feed_rate'))
+        self.le_safe_z.setText(self.settings.value('safe_z'))
+        self.le_work_z.setText(self.settings.value('work_z'))
+        self.le_power_min.setText(self.settings.value('min_power'))
+        self.le_power_max.setText(self.settings.value('max_power'))
+        if 'true' == self.settings.value('vertical'):
+            self.cb_vertical.setChecked(True)
+        if 'true' == self.settings.value('touch'):
+            self.cb_touch.setChecked(True)
+        self.full_file_out = self.settings.value('file_out')
+        head, tail = os.path.split(self.full_file_out)
+        self.lb_file_out.setText(tail)
+    
+    def save_settings(self):
+        self.settings.setValue('window_size', self.size())
+        self.settings.setValue('window_position', self.pos())
+        self.settings.setValue('file_in', self.full_file_in)
+        if self.rb_in.isChecked(): 
+            units='in'
+        else: 
+            units='mm'
+        self.settings.setValue('units', units)
+        self.settings.setValue('image_dp', self.le_image_dp.text())
+        self.settings.setValue('target_dp', self.le_target_dp.text())
+        self.settings.setValue('target_width', self.le_target_width.text())
+        self.settings.setValue('feed_rate', self.le_feedrate.text())
+        self.settings.setValue('safe_z', self.le_safe_z.text())
+        self.settings.setValue('work_z', self.le_work_z.text())
+        self.settings.setValue('min_power', self.le_power_min.text())
+        self.settings.setValue('max_power', self.le_power_max.text())
+        self.settings.setValue('vertical', self.cb_vertical.isChecked())
+        self.settings.setValue('touch', self.cb_touch.isChecked())
+        self.settings.setValue('file_out', self.full_file_out)
+
+    def closeEvent(self, event):
+        self.save_settings()
+        super().closeEvent(event)
+
+    def open(self):
+        #print(f"self.full_file_in: {self.full_file_in}")
+        lastdir = self.full_file_in if self.full_file_in else os.getcwd()
+        lastdir = os.path.dirname(lastdir) if os.path.isfile(lastdir) else lastdir
+        #print(f"lastdir: {lastdir}")
+        dialog = QFileDialog(self)
+        dialog.setWindowTitle("Open Image")
+        dialog.setDirectory(lastdir)
+        dialog.setNameFilter("Image Files (*.png *.jpg *.bmp)")
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+        dialog.resize(800, 600)
+        font = QFont()
+        font.setPointSize(12)
+        dialog.setFont(font)
+        dialog.exec()
+        fileName = (dialog.selectedFiles()[0] if dialog.selectedFiles()[0] else "")
+        #print(f'returned filename: {fileName}')
+        head, tail = os.path.split(fileName)
+        #print(f'Head: {head}  Tail: {tail}')
+        # TODO: validate that file is valid type...
+        self.statusBar.showMessage("Opening image file...", 2000)
+        # not sure we should actually open it here... because if we do,
+        # then the user changes the settings, we have to reprocess somehow
+        try:
+            self.img = Image.open(fileName)
+            if self.img.mode != 'L':     # convert to grayscale if not already
+                self.img_l = self.img.convert('L', colors=999)  # to match le_power_max
+# NOTE THIS DOES NOT WORK! Pillow's convert('L') only gives 256 levels of gray, 
+# which is well below what LinuxCNC and Mesa hardware are capable of.
+# We need to do the RGB to Luminance conversion ourselves to get more than 8 
+# bits of resolution!
+                # self.img is the original image
+                # self.img_l is the grayscale version used for processing
+            #print("Successfully opened image file!")
+        except Exception as e:
+            print(f"Error opening image file!: {e}")
+            self.statusBar.showMessage("Error opening image file!", 2000)
+            return
+        self.statusBar.showMessage("Image opened successfully!", 2000)
+        # display image size in pixels
+        img_w, img_h = self.img_l.size
+        self.lb_image_px.setText(f"{img_w}x{img_h}")
+        # now show file since it opened successfully
+        self.lb_file_in.setText(tail)
+        # and set the self.full_file_in for later use
+        self.full_file_in = fileName
+        # get image DPI
+        img_dp = self.m * self.img_l.info.get('dpi', (72, 72))[0]  # default to 72 DPI if not specified
+        img_dp = round(img_dp)  # round to nearest whole number
+        #print(f"Image DPI: {img_dp}")
+        self.le_image_dp.setText(f"{img_dp}")  # assume square pixels
+        # TODO: read file data, update labels?
+        # display the source image, retaining aspect ratio
+        pixmap = QPixmap(str(fileName))
+        if not pixmap.isNull():
+            scaled_pixmap = pixmap.scaled(self.img_src.size(), 
+                            aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+            self.img_src.setPixmap(scaled_pixmap)
+
+    def le_mousePressEvent(self, line_edit, event):
+        """Handle mouse press on line edits; if touch enabled, open touch dialog"""
+        if not self.cb_touch.isChecked():
+            return type(line_edit).mousePressEvent(line_edit, event)
+        title = line_edit.objectName().replace("le_", "").replace("_", " ").title()
+        self.touch_dialog(line_edit, title)
+
+    def touch_dialog(self, field, title):
+        """Open touch UI dialog for a touched line edit"""
+        dialog = QDialog(self)
+        uic.loadUi("dmap2m67-touch.ui", dialog)
+        dialog.setWindowTitle(title)
+
+        le_value = dialog.findChild(type(self.le_image_dp), "le_value")
+        if le_value is None:
+            return
+        le_value.setText(field.text())
+
+        for digit in range(10):
+            button = dialog.findChild(type(self.pb_open), f"pb_{digit}")
+            if button:
+                button.clicked.connect(lambda checked, d=digit: self.touch_digit(le_value, str(d)))
+
+        pb_dot = dialog.findChild(type(self.pb_open), "pb_dot")
+        if pb_dot:
+            pb_dot.clicked.connect(lambda: self.touch_digit(le_value, "."))
+
+        pb_plus_minus = dialog.findChild(type(self.pb_open), "pb_plus_minus")
+        if pb_plus_minus:
+            pb_plus_minus.clicked.connect(lambda: self.touch_toggle_sign(le_value))
+
+        pb_backspace = dialog.findChild(type(self.pb_open), "pb_backspace")
+        if pb_backspace:
+            pb_backspace.clicked.connect(lambda: self.touch_backspace(le_value))
+
+        pb_clear = dialog.findChild(type(self.pb_open), "pb_clear")
+        if pb_clear:
+            pb_clear.clicked.connect(lambda: le_value.setText("0"))
+
+        pb_ok = dialog.findChild(type(self.pb_open), "pb_ok")
+        if pb_ok:
+            pb_ok.clicked.connect(dialog.accept)
+
+        pb_quit = dialog.findChild(type(self.pb_open), "pb_quit")
+        if pb_quit:
+            pb_quit.clicked.connect(dialog.reject)
+
+        result = dialog.exec()
+        if result == QDialog.DialogCode.Accepted:
+            try:
+                field.setText(le_value.text())
+            except Exception as e:
+                print(f"Invalid le_value.text() input: {e}")
+                pass
+    
+    def touch_digit(self, le_value, digit):
+        """Handle digit button press in touch dialog"""
+        current = le_value.text()
+        if current == "0" and digit != ".":
+            le_value.setText(digit)
+        else:
+            le_value.setText(current + digit)
+    
+    def touch_backspace(self, le_value):
+        """Handle backspace in touch dialog"""
+        current = le_value.text()
+        if len(current) > 1:
+            le_value.setText(current[:-1])
+        else:
+            le_value.setText("0")
+    
+    def touch_toggle_sign(self, le_value):
+        """Toggle sign in touch dialog"""
+        current = le_value.text()
+        if current.startswith("-"):
+            le_value.setText(current[1:])
+        else:
+            le_value.setText("-" + current)
+
+    def rb_mm_changed(self):
+        """Handle change to mm units; update multiplier"""
+        self.m = 25.4
+        # TODO: need to calculate and update other values
+        
+    def rb_in_changed(self):
+        """Handle change to inch units; update multiplier"""
+        self.m = 1.0
+        # TODO: need to calculate and update other values
+
+    def targetwidth(self):
+        # sane here is the largest dimension of this machine...
+        # TODO: make this a setting that can be changed by the user, and saved between runs?
+        largest = 1400.0  # millimeters
+        if float(self.le_target_width.text()) > largest:
+            os.system('printf "\a"') # bel character alert for invalid input
+
+    def targetdp(self):
+        os.system('printf "\a"')
+        # TODO: need to calculate and update other values
+
+    def feedrate(self):
+        pass
+
+    def safez(self):
+        pass
+
+    def workz(self):
+        pass
+
+    def powermin(self):
+        pass
+
+    def powermax(self):
+        pass
+
+    def saveas(self):
+        print(f'full_file_out: {self.full_file_out}')
+        lastfile = self.full_file_out if self.full_file_out else os.getcwd()
+        print(f'lastfile: {lastfile}')
+        lastdir = os.path.dirname(lastfile) if os.path.isfile(lastfile) else lastfile
+        print(f'lastdir: {lastdir}')
+        dialog = QFileDialog(self)
+        dialog.setWindowTitle("Save M67 GCODE")
+        dialog.setDirectory(lastdir)
+        dialog.setNameFilter("GCODE Files (*.ngc *.nc *.txt)")
+        dialog.setFileMode(QFileDialog.FileMode.AnyFile)
+        dialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+        dialog.resize(800, 600)
+        font = QFont()
+        font.setPointSize(12)
+        dialog.setFont(font)
+        dialog.exec()
+        fileName = (dialog.selectedFiles()[0] if dialog.selectedFiles() else "")
+        print(f'returned filename: {fileName}')
+        head, tail = os.path.split(fileName)
+        print(f'Head: {head}  Tail: {tail}')
+        # TODO: validate that file will not be overwritten...
+        # TODO: push tail to lb_file_out, if valid
+        self.lb_file_out.setText(tail)
+        # and set the self.full_file_out for later use
+        self.full_file_out = fileName
+
+    def validate(self):
+        """ TODO: Validate all inputs before conversion """
+        pass
+
+    def convert(self):
+        """ TODO: Convert the loaded image to M67 GCODE using the current settings """
+        os.system('printf "\a"')
+        print("TODO: Conversion!")
+# start of raggielye's code
+        #if len(sys.argv) != 11:
+        #  print("ERROR: Wrong number of arguments!")
+        #  return 1
+        
+        # Parse arguments
+        #input_file = sys.argv[1]
+        input_file = self.full_file_in
+        #target_width_mm = float(sys.argv[2])
+        target_width_mm = float(self.le_target_width.text())
+        #dpi = int(sys.argv[3])
+        dpi = int(self.le_target_dp.text())
+        #feed_rate = int(sys.argv[4])
+        feed_rate = int(self.le_feedrate.text())
+        #safe_z = float(sys.argv[5])
+        safe_z = float(self.le_safe_z.text())
+        #engrave_z = float(sys.argv[6])
+        engrave_z = float(self.le_work_z.text())
+        #min_power = int(sys.argv[7])
+        min_power = int(self.le_power_min.text())
+        #max_power = int(sys.argv[8])
+        max_power = int(self.le_power_max.text())
+        #cross_hatch = sys.argv[9]
+        vertical = 'y' if self.cb_vertical.isChecked() else 'n'
+        #output_file = sys.argv[10]
+        output_file = self.full_file_out
+        
+        print(f"Converting: {os.path.basename(input_file)}")
+        print(f"Power range: {min_power}-{max_power}")
+
+        try:
+          # Load image
+          img = Image.open(input_file)
+          if img.mode != 'L':
+              img = img.convert('L')
+          orig_w, orig_h = img.size
+          
+          # Calculate new size
+          pixels_per_mm = dpi / 25.4
+          target_px_w = int(target_width_mm * pixels_per_mm)
+          aspect_ratio = orig_h / orig_w
+          target_px_h = int(target_px_w * aspect_ratio)
+            
+          actual_mm_w = target_px_w / pixels_per_mm
+          actual_mm_h = target_px_h / pixels_per_mm
+          mm_per_pixel = 25.4 / dpi
+            
+          print(f"Image size: {target_px_w}x{target_px_h} pixels")
+          print(f"Physical size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm")
+          print(f"mm per pixel: {mm_per_pixel:.3f}")
+        
+          # Resize
+          img = img.resize((target_px_w, target_px_h))
+          #pixels = list(img.getdata())  # depreciated, ending 2027-10-15
+          pixels = list(img.get_flattened_data())
+
+          # Generate G-code
+          with open(output_file, 'w') as f:
+            # Header
+            f.write('; dmap2m67 - laser raster engraving by raggielye and rdtsc\n')
+            f.write(f'; Image: {os.path.basename(input_file)}\n')
+            f.write(f'; Size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm\n')
+            f.write(f'; DPI: {dpi}\n')
+            f.write(f'; Feed: {feed_rate}\n')
+            f.write(f'; Power: {min_power}-{max_power}\n\n')
+
+            # Setup
+            f.write('G21\nG90\nG64\nG17\nG54\n\n')
+            
+            # Initialize
+            f.write(f'F{feed_rate}\n')
+            f.write(f'G0 Z{safe_z:.1f}\n')
+            f.write('G0 X0 Y0\n')
+            f.write(f'G0 Z{engrave_z:.1f}\n')
+            #f.write('M3\n\n')
+            
+            # HORIZONTAL PASSES
+            f.write('; --- HORIZONTAL PASSES ---\n')
+            print("\nGenerating horizontal passes...")
+            
+            for y in range(target_px_h):
+              # Flip Y: image row y (0=top) -> machine Y (target_px_h-1-y)*mm_per_pixel
+              y_pos = (target_px_h - 1 - y) * mm_per_pixel
+            
+              if y % 2 == 0:
+                # Left to right
+                f.write(f'M67 E1 Q0\nG0 X0 Y{y_pos:.3f}\n')
+                for x in range(target_px_w):
+                  pixel = pixels[y * target_px_w + x]
+                  # TODO: L-mode limits the depth resolution to 256 levels!
+# Q: How does Pillow calculate the Luminance value in L mode from an RGB image?
+# A: Pillow uses a standard formula for converting RGB to Luminance (L): 
+#    L = R * 0.299 + G * 0.587 + B * 0.114. 
+# This formula weights the color channels based on human perception of brightness.
+# So we need to do this on each RGB pixel so that we get more than 8 bits of resolution!
+                  power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
+                  f.write(f'M67 E1 Q{power}\n')
+                  #f.write(f'G1 X{x*mm_per_pixel:.3f} S{power}\n')
+                  f.write(f'G1 X{x*mm_per_pixel:.3f}\n')
+                    
+                else:
+                # Right to left
+                  f.write(f'M67 E1 Q0\nG0 X{actual_mm_w:.3f} Y{y_pos:.3f}\n')
+                  for x in range(target_px_w-1, -1, -1):
+                    pixel = pixels[y * target_px_w + x]
+                    # NOTE: L-mode limits the depth resolution to 256 levels!
+                    power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
+                    f.write(f'M67 E1 Q{power}\n')
+                    #f.write(f'G1 X{x*mm_per_pixel:.3f} S{power}\n')
+                    f.write(f'G1 X{x*mm_per_pixel:.3f}\n')
+            
+                if y % 50 == 0:
+                  print(f" Row {y+1}/{target_px_h}")
+            
+            # VERTICAL PASSES
+            if vertical.lower() == 'y':
+              f.write('\n; --- VERTICAL PASSES ---\n')
+              print("\nGenerating vertical passes...")
+              #print("DEBUG: This should engrave on the way UP, not on the way DOWN!")
+            
+              for x in range(target_px_w):
+                x_pos = x * mm_per_pixel
+                if x % 2 == 0:
+                  # Even columns: bottom to top (engrave on the way UP)
+                  f.write(f'M67 E1 Q0\nG0 X{x_pos:.3f} Y0\n')
+                  # We want to go from Y=0 to Y=max
+                  # Read pixels from BOTTOM (image row target_px_h-1) to TOP (image row 0)
+                  for step in range(target_px_h):
+                    # step: 0 to target_px_h-1 (bottom to top in machine coords)
+                    # image_y: target_px_h-1 to 0 (bottom to top in image)
+                    image_y = target_px_h - 1 - step
+                    pixel = pixels[image_y * target_px_w + x]
+                    # NOTE: L-mode limits the depth resolution to 256 levels!
+                    power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
+                    current_y = step * mm_per_pixel # 0 to max
+                    f.write(f'M67 E1 Q{power}\n')
+                    f.write(f'G1 Y{current_y:.3f}\n')
+                else:
+                  # Odd columns: top to bottom (engrave on the way DOWN)
+                  f.write(f'M67 E1 Q0\nG0 X{x_pos:.3f} Y{actual_mm_h:.3f}\n')
+                  # We want to go from Y=max to Y=0
+                  # Read pixels from TOP (image row 0) to BOTTOM (image row target_px_h-1)
+                  for step in range(target_px_h):
+                    # step: 0 to target_px_h-1 (represents position from top)
+                    image_y = step # 0 to target_px_h-1 (top to bottom in image)
+                    pixel = pixels[image_y * target_px_w + x]
+                    # NOTE: L-mode limits the depth resolution to 256 levels!
+                    power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
+                    current_y = actual_mm_h - (step * mm_per_pixel) # max to 0
+                    f.write(f'M67 E1 Q{power}\n')
+                    f.write(f'G1 Y{current_y:.3f}\n')
+                if x % 50 == 0:
+                    print(f" Column {x+1}/{target_px_w}")
+            
+            f.write('M67 E1 Q0\n')
+            # End program
+            f.write('\n; --- END ---\n')
+            #f.write('M5\n')
+            f.write(f'G0 Z{safe_z:.1f}\n')
+            f.write('G0 X0 Y0\n')
+            f.write('M2\n')
+            
+            print(f"\n✅ G-code written to: {output_file}")
+
+            # Show sample of vertical section
+            if vertical.lower() == 'y' and os.path.exists(output_file):
+              with open(output_file, 'r') as f:
+                lines = f.readlines()
+                
+                # Find vertical section
+                for i, line in enumerate(lines):
+                  if 'VERTICAL PASSES' in line:
+                    print("\n=== SAMPLE OF VERTICAL SECTION ===")
+                    # Show first 20 lines of vertical section
+                    for j in range(i, min(i+20, len(lines))):
+                      print(f" {lines[j].rstrip()}")
+                      print("...")
+                  break
+        #    return 0
+
+        except Exception as e:
+            print(f"\n❌ ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+        #    return 1
+# end of raggielye's code
+
+
+def main():
+    dmap2m64 = QApplication([])
+    window = dmap2m67GUI()
+    dmap2m64.exec()
+    del window, dmap2m64
+
+if __name__ == '__main__':
+    main()
+
+# EOF
