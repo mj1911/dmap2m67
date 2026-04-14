@@ -92,21 +92,23 @@ class dmap2m67GUI(QMainWindow):
         self.pb_saveas.clicked.connect(self.saveas)
         self.pb_convert.clicked.connect(self.convert)
 
-    def load_settings(self):    # (~/.config/RDTSC/dmap2m67.conf)
+    def load_settings(self):    
+        # Linux & Mac: ~/.config/RDTSC/dmap2m67.conf
+        # Windows: HKCU\Software\RDTSC\dmap2m67
         self.settings = QSettings('RDTSC', 'dmap2m67')
         if not self.settings.contains('window_size'):   # if none, default
             self.settings.setValue('window_size', QSize(1000, 745))
             self.settings.setValue('window_position', QPoint(0, 0))
             self.settings.setValue('file_in', 'FileIn.png')
             self.settings.setValue('units', 'in')
-            self.settings.setValue('image_dp', 72)
-            self.settings.setValue('target_dp', 72)
-            self.settings.setValue('target_width', 2.25) # others are calculated
-            self.settings.setValue('feed_rate', 50)
-            self.settings.setValue('safe_z', -5.0)
-            self.settings.setValue('work_z', -8.0)
-            self.settings.setValue('min_power', 0)
-            self.settings.setValue('max_power', 999)
+            self.settings.setValue('image_dp', '72') # must set these as text
+            self.settings.setValue('target_dp', '72')
+            self.settings.setValue('target_width', '2.25') # others are calculated
+            self.settings.setValue('feed_rate', '50')
+            self.settings.setValue('safe_z', '-5.0')
+            self.settings.setValue('work_z', '-8.0')
+            self.settings.setValue('min_power', '0')
+            self.settings.setValue('max_power', '999')
             self.settings.setValue('vertical', False)
             self.settings.setValue('touch', False)
             self.settings.setValue('file_out', 'FileOut.ngc')
@@ -119,10 +121,9 @@ class dmap2m67GUI(QMainWindow):
             centerPoint = QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
             qtRectangle.moveCenter(centerPoint)
             self.move(qtRectangle.topLeft())
-        # else restore previous window size and position
+        # else restore previous values
         self.resize(self.settings.value('window_size'))
         self.move(self.settings.value('window_position'))
-        # and rest of values
         self.full_file_in = self.settings.value('file_in')
         head, tail = os.path.split(self.full_file_in)
         self.lb_file_in.setText(tail)   # update display
@@ -328,10 +329,10 @@ class dmap2m67GUI(QMainWindow):
         # TODO: make this a setting that can be changed by the user, and saved between runs?
         largest = 1400.0  # millimeters
         if float(self.le_target_width.text()) > largest:
-            os.system('printf "\a"') # bel character alert for invalid input
+            pass    # could emit a beep for error
 
     def targetdp(self):
-        os.system('printf "\a"')
+        pass
         # TODO: need to calculate and update other values
 
     def feedrate(self):
@@ -350,11 +351,11 @@ class dmap2m67GUI(QMainWindow):
         pass
 
     def saveas(self):
-        print(f'full_file_out: {self.full_file_out}')
+        #print(f'full_file_out: {self.full_file_out}')
         lastfile = self.full_file_out if self.full_file_out else os.getcwd()
-        print(f'lastfile: {lastfile}')
+        #print(f'lastfile: {lastfile}')
         lastdir = os.path.dirname(lastfile) if os.path.isfile(lastfile) else lastfile
-        print(f'lastdir: {lastdir}')
+        #print(f'lastdir: {lastdir}')
         dialog = QFileDialog(self)
         dialog.setWindowTitle("Save M67 GCODE")
         dialog.setDirectory(lastdir)
@@ -367,13 +368,11 @@ class dmap2m67GUI(QMainWindow):
         dialog.setFont(font)
         dialog.exec()
         fileName = (dialog.selectedFiles()[0] if dialog.selectedFiles() else "")
-        print(f'returned filename: {fileName}')
+        #print(f'returned filename: {fileName}')
         head, tail = os.path.split(fileName)
-        print(f'Head: {head}  Tail: {tail}')
-        # TODO: validate that file will not be overwritten...
-        # TODO: push tail to lb_file_out, if valid
+        #print(f'Head: {head}  Tail: {tail}')
         self.lb_file_out.setText(tail)
-        # and set the self.full_file_out for later use
+        # must set self.full_file_out for later use
         self.full_file_out = fileName
 
     def validate(self):
@@ -381,9 +380,7 @@ class dmap2m67GUI(QMainWindow):
         pass
 
     def convert(self):
-        """ TODO: Convert the loaded image to M67 GCODE using the current settings """
-        os.system('printf "\a"')
-        print("TODO: Conversion!")
+        """ Convert the loaded image to M67 GCODE using the current settings """
 # start of raggielye's code
         #if len(sys.argv) != 11:
         #  print("ERROR: Wrong number of arguments!")
@@ -391,24 +388,24 @@ class dmap2m67GUI(QMainWindow):
         
         # Parse arguments
         #input_file = sys.argv[1]
-        input_file = self.full_file_in
         #target_width_mm = float(sys.argv[2])
-        target_width_mm = float(self.le_target_width.text())
         #dpi = int(sys.argv[3])
-        dpi = int(self.le_target_dp.text())
         #feed_rate = int(sys.argv[4])
-        feed_rate = int(self.le_feedrate.text())
         #safe_z = float(sys.argv[5])
-        safe_z = float(self.le_safe_z.text())
         #engrave_z = float(sys.argv[6])
-        engrave_z = float(self.le_work_z.text())
         #min_power = int(sys.argv[7])
-        min_power = int(self.le_power_min.text())
         #max_power = int(sys.argv[8])
-        max_power = int(self.le_power_max.text())
         #cross_hatch = sys.argv[9]
-        vertical = 'y' if self.cb_vertical.isChecked() else 'n'
         #output_file = sys.argv[10]
+        input_file = self.full_file_in
+        target_width_mm = float(self.le_target_width.text())
+        dpi = int(self.le_target_dp.text())
+        feed_rate = int(self.le_feedrate.text())
+        safe_z = float(self.le_safe_z.text())
+        engrave_z = float(self.le_work_z.text())
+        min_power = int(self.le_power_min.text())
+        max_power = int(self.le_power_max.text())
+        vertical = 'y' if self.cb_vertical.isChecked() else 'n'
         output_file = self.full_file_out
         
         print(f"Converting: {os.path.basename(input_file)}")
@@ -417,6 +414,7 @@ class dmap2m67GUI(QMainWindow):
         try:
           # Load image
           img = Image.open(input_file)
+          # NOTE: trying to process raw RGB data instead of L mode.
           if img.mode != 'L':
               img = img.convert('L')
           orig_w, orig_h = img.size
@@ -437,13 +435,26 @@ class dmap2m67GUI(QMainWindow):
         
           # Resize
           img = img.resize((target_px_w, target_px_h))
-          #pixels = list(img.getdata())  # depreciated, ending 2027-10-15
-          pixels = list(img.get_flattened_data())
+          if os.name == 'nt':   # windows does not have get_flattened_data()
+            pixels = list(img.getdata())
+#            r = list(img.getdata(0))
+#            g = list(img.getdata(1))
+#            b = list(img.getdata(2))
+          else:                 # linux depreciates getdata()
+            pixels = list(img.get_flattened_data())
+#            r = list(img.get_flattened_data(0))
+#            g = list(img.get_flattened_data(1))
+#            b = list(img.get_flattened_data(2))
+
+          # Pre-multiply the transform coefficients by the power range
+#          Rc = 0.299 * (max_power - min_power)
+#          Gc = 0.587 * (max_power - min_power)
+#          Bc = 0.114 * (max_power - min_power)
 
           # Generate G-code
           with open(output_file, 'w') as f:
             # Header
-            f.write('; dmap2m67 - laser raster engraving by raggielye and rdtsc\n')
+            f.write('; dmap2m67 - laser raster engraving by raggielyle and rdtsc\n')
             f.write(f'; Image: {os.path.basename(input_file)}\n')
             f.write(f'; Size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm\n')
             f.write(f'; DPI: {dpi}\n')
@@ -461,7 +472,7 @@ class dmap2m67GUI(QMainWindow):
             #f.write('M3\n\n')
             
             # HORIZONTAL PASSES
-            f.write('; --- HORIZONTAL PASSES ---\n')
+            f.write('\n; --- HORIZONTAL PASSES ---\n')
             print("\nGenerating horizontal passes...")
             
             for y in range(target_px_h):
@@ -479,6 +490,15 @@ class dmap2m67GUI(QMainWindow):
 #    L = R * 0.299 + G * 0.587 + B * 0.114. 
 # This formula weights the color channels based on human perception of brightness.
 # So we need to do this on each RGB pixel so that we get more than 8 bits of resolution!
+# Suppose we could pre-multiply these coefficients by the max_power to get a 
+# direct mapping to M67 power level.  
+# This has it's own set of hurdes, as now the RGB data must be split...
+#R,G,B = img.split()
+                  #R = r[y * target_px_w + x]
+                  #G = g[y * target_px_w + x]
+                  #B = b[y * target_px_w + x]
+                  #power = min_power + int(R*Rc + G*Gc + B*Bc)
+# This no-go... out of time to troubleshoot.  Reverting changes.
                   power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
                   f.write(f'M67 E1 Q{power}\n')
                   #f.write(f'G1 X{x*mm_per_pixel:.3f} S{power}\n')
@@ -489,7 +509,11 @@ class dmap2m67GUI(QMainWindow):
                   f.write(f'M67 E1 Q0\nG0 X{actual_mm_w:.3f} Y{y_pos:.3f}\n')
                   for x in range(target_px_w-1, -1, -1):
                     pixel = pixels[y * target_px_w + x]
-                    # NOTE: L-mode limits the depth resolution to 256 levels!
+                    #R = r[y * target_px_w + x]
+                    #G = g[y * target_px_w + x]
+                    #B = b[y * target_px_w + x]
+                    #power = min_power + int(R*Rc + G*Gc + B*Bc)
+# This no-go... out of time to troubleshoot.  Reverting changes.
                     power = min_power + int((max_power - min_power) * (255 - pixel) / 255)
                     f.write(f'M67 E1 Q{power}\n')
                     #f.write(f'G1 X{x*mm_per_pixel:.3f} S{power}\n')
@@ -547,8 +571,10 @@ class dmap2m67GUI(QMainWindow):
             f.write('M2\n')
             
             print(f"\n✅ G-code written to: {output_file}")
-
-            # Show sample of vertical section
+            # TODO: would be nice to see the size of this file
+            # TODO: remove ancillary moves (like G1 with no laser change) to reduce file size?
+            # TODO: show optimized file size after removing redundant moves?
+            # Show sample of vertical section (this doesn't seem to work for me)
             if vertical.lower() == 'y' and os.path.exists(output_file):
               with open(output_file, 'r') as f:
                 lines = f.readlines()
@@ -569,7 +595,7 @@ class dmap2m67GUI(QMainWindow):
             import traceback
             traceback.print_exc()
         #    return 1
-# end of raggielye's code
+# end of raggielyle's code
 
 
 def main():
