@@ -3,14 +3,15 @@
 
 ''' App to convert image as depth-map to M67 Analog Output GCODE for PWM laser 
     raster using Mesa hardware. 
-    
+
     dmap2m67 - Depth-Map to M67 G-Code Converter
 
     Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
     This app is based on work by:
         raggielyle1           2026 Bruce Lyle   raggielyle1@gmail.com
-        (https://forum.linuxcnc.org/plasma-laser/35064-new-laser-build-raster-engraving#342700)
-              
+        (https://forum.linuxcnc.org/plasma-laser/
+         35064-new-laser-build-raster-engraving#342700)
+
     Version 0.01    20260408 - Initial code; main routine by Bruce.
         Start design around Qt5; start basic Qt5 GUI.  Rework for PyQt6.
         Design import section to alert missing dependencies (pyqt6, pillow.)
@@ -24,7 +25,6 @@
         TODO: img_out is a graphicsView to preview the generated GCODE
 '''
 
-#from cProfile import label
 import sys
 import os
 
@@ -34,7 +34,7 @@ if VERSION != 3:
     print("Python version 3.xx required!  Get from: https://www.python.org/downloads/")
     exit()
 
-# try to import dependencies, and if not found, alert user
+# try to import dependencies, and if not found, alert user and stop
 try:    # https://pypi.org/project/pyqt6/
     from PyQt6 import uic, QtGui
 except ImportError or ModuleNotFoundError:
@@ -64,13 +64,10 @@ version = '0.01'
 
 
 class dmap2m67GUI(QMainWindow):
-    #img = ImageFile = None  # preset vars
-    #m = 1.0  # metric multiplier; 1.0 for inches, 25.4 for mm
-
     def __init__(self):
         super(dmap2m67GUI, self).__init__() # define self as an app
-        #main = uic.loadUi("dmap2m67.ui", self)  # load GUI
-        uic.loadUi("dmap2m67.ui", self)  # load GUI
+        main = uic.loadUi("dmap2m67.ui", self)  # load GUI
+        #uic.loadUi("dmap2m67.ui", self)  # load GUI
         self.load_settings()    # restore settings
         self.show()     # show main window quickly
         # setup links from control interaction to code
@@ -125,6 +122,7 @@ class dmap2m67GUI(QMainWindow):
         self.resize(self.settings.value('window_size'))
         self.move(self.settings.value('window_position'))
         self.full_file_in = self.settings.value('file_in')
+        self.imageloaded = False
         head, tail = os.path.split(self.full_file_in)
         self.lb_file_in.setText(tail)   # update display
         if 'in' == self.settings.value('units'): 
@@ -315,14 +313,14 @@ class dmap2m67GUI(QMainWindow):
             le_value.setText("-" + current)
 
     def rb_mm_changed(self):
-        """Handle change to mm units; update multiplier"""
+        """ Handle change to mm units """
         self.m = 25.4
-        # TODO: need to calculate and update other values
+        self.validate() # check inputs and update display
         
     def rb_in_changed(self):
-        """Handle change to inch units; update multiplier"""
+        """ Handle change to inch units """
         self.m = 1.0
-        # TODO: need to calculate and update other values
+        self.validate()
 
     def targetwidth(self):
         # sane here is the largest dimension of this machine...
@@ -330,12 +328,12 @@ class dmap2m67GUI(QMainWindow):
         largest = 1400.0  # millimeters
         if float(self.le_target_width.text()) > largest:
             pass    # could emit a beep for error
+        self.validate()
 
     def targetdp(self):
-        pass
-        # TODO: need to calculate and update other values
+        self.validate()
 
-    def feedrate(self):
+    def feedrate(self): # these won't change display
         pass
 
     def safez(self):
@@ -376,11 +374,56 @@ class dmap2m67GUI(QMainWindow):
         self.full_file_out = fileName
 
     def validate(self):
-        """ TODO: Validate all inputs before conversion """
-        pass
+        """ TODO: Validate all inputs, update display, report issues """
+        if not self.imageloaded:
+            # attempt to load image
+            try:
+                self.img = Image.open(self.full_file_in)
+                #if self.img.mode != 'L':     # convert to grayscale if not already
+                #    self.img_l = self.img.convert('L', colors=999)  # to match le_power_max
+                self.imageloaded = True
+            except Exception as e:
+                print(f"Error opening image file!: {e}")
+                self.statusBar.showMessage("Error opening image file!", 2000)
+                return False
+        units = 25.4 if self.rb_mm.isChecked() else 1.0
+        x,y = self.img.size
+        if x <= 0 or y <= 0:
+            print("Error: Image has invalid dimensions!")
+            self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
+            return False
+        imagedpnative = round(self.img.info.get('dpi', (72, 72))[0])  # default to 72 DPI
+        imagedp = int(self.le_image_dp.text())
+        if imagedp != imagedpnative:
+            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not match Image DP ({imagedp}).")
+            self.statusBar.showMessage("Warning: native image Dot-Pitch does not match entered DP!", 2000)
+        if imagedp <= 0:
+            print("Error: Image DP must be greater than 0!")
+            self.statusBar.showMessage("Error: Image DP must be greater than 0!", 2000)
+            return False
+        #imagew = float(self.le_image_width.text())
+        #imageh = float(self.le_image_height.text())
+        # TODO: some snafus here with mm units and DP
+        self.lb_image_width.setText(f"{x * units / imagedp:.2f}")
+        self.lb_image_height.setText(f"{y * units / imagedp:.2f}")
+        targetdp = int(self.le_target_dp.text())
+        targetw = float(self.le_target_width.text())
+        self.lb_target_height.setText(f"{targetw * units / targetdp:.2f}")
+        feedrate = int(self.le_feedrate.text())
+        safez = float(self.le_safe_z.text())
+        workz = float(self.le_work_z.text())
+        powermin = int(self.le_power_min.text())
+        powermax = int(self.le_power_max.text())
+
+        return True
 
     def convert(self):
         """ Convert the loaded image to M67 GCODE using the current settings """
+        # validate settings...
+        if not self.validate():
+            print("Settings error! Please check your inputs.")
+            self.statusBar.showMessage("Error in one or more settings!", 2000)
+            return
 # start of raggielye's code
         #if len(sys.argv) != 11:
         #  print("ERROR: Wrong number of arguments!")
@@ -434,17 +477,18 @@ class dmap2m67GUI(QMainWindow):
           print(f"mm per pixel: {mm_per_pixel:.3f}")
         
           # Resize
+          # TODO: are there different modes for resize?
           img = img.resize((target_px_w, target_px_h))
           if os.name == 'nt':   # windows does not have get_flattened_data()
             pixels = list(img.getdata())
 #            r = list(img.getdata(0))
 #            g = list(img.getdata(1))
 #            b = list(img.getdata(2))
-          else:                 # linux depreciates getdata()
-            pixels = list(img.get_flattened_data())
-#            r = list(img.get_flattened_data(0))
-#            g = list(img.get_flattened_data(1))
-#            b = list(img.get_flattened_data(2))
+          else:                 # linux depreciated getdata() before, now?
+            pixels = list(img.getdata())
+#            r = list(img.getdata(0))
+#            g = list(img.getdata(1))
+#            b = list(img.getdata(2))
 
           # Pre-multiply the transform coefficients by the power range
 #          Rc = 0.299 * (max_power - min_power)
