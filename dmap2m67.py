@@ -1,28 +1,34 @@
 #! /usr/bin/env python3
 #  -*- coding: utf-8 -*-
 
-''' App to convert image as depth-map to M67 Analog Output GCODE for PWM laser 
-    raster using Mesa hardware. 
+''' App to convert image to M67 Analog Output GCODE for laser raster, using
+    Mesa hardware PWM. 
 
-    dmap2m67 - Depth-Map to M67 G-Code Converter
+    image2m67 - Image to M67 G-Code Converter
 
     Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
     This app is based on work by:
-        raggielyle1           2026 Bruce Lyle   raggielyle1@gmail.com
-        (https://forum.linuxcnc.org/plasma-laser/
-         35064-new-laser-build-raster-engraving#342700)
+      raggielyle1           2026 Bruce Lyle   raggielyle1(A)gmail.com
+      (https://forum.linuxcnc.org/plasma-laser/
+       35064-new-laser-build-raster-engraving#342700)
 
-    Version 0.01    20260408 - Initial code; main routine by Bruce.
-        Start design around Qt5; start basic Qt5 GUI.  Rework for PyQt6.
-        Design import section to alert missing dependencies (pyqt6, pillow.)
-        Implement QSettings to load and save options between runs.
-        Change default font to 12pt for better readability on touch screens.
-        Create touch UI dialog for data entry on touchscreens.
-        TODO: looks fine on Debian, but on Arch, the GUI is misaligned...
-        TODO: if any M67's are sequentially identical (redundant), omit them!
-              can likely omit irrelevant moves too, reducing output file size.
-        TODO: img_luma needs to have a QPixmap to preview the processed image
-        TODO: img_out is a graphicsView to preview the generated GCODE
+    Version 0.01  20260408 - Initial code; main routine by Bruce.
+      * Start design around Qt5; start basic Qt5 GUI.  Rework for PyQt6.
+      * Design import section to alert missing dependencies (pyqt6, pillow.)
+      * Implement QSettings to load and save options between runs.
+      * Change default font to 12pt for better readability on touch screens.
+      * Create touch UI dialog for data entry on touchscreens.
+      * UI controls present, but mostly non-functional at this point.
+      * Got converter working, but limited to 256 gray levels due to Pillow's 
+        convert('L') method.  Need to do RGB to Luminance conversion ourselves 
+        to get more than 8 bits of resolution.
+      * TODO: if any M67's are sequentially identical (redundant), omit them!
+        Can likely optimize-out irrelevant moves too, reducing output file size.
+    Version 0.02  20260415 - Add image loading, display, and settings validation.
+      * TODO: need to re-validate and update display when units are changed, a
+        new image is loaded, or when any of the relevant settings are changed.
+      * TODO: img_luma needs a QPixmap to preview the processed image
+      * TODO: img_out is a graphicsView to preview the generated GCODE
 '''
 
 import sys
@@ -34,7 +40,7 @@ if VERSION != 3:
     print("Python version 3.xx required!  Get from: https://www.python.org/downloads/")
     exit()
 
-# try to import dependencies, and if not found, alert user and stop
+# try to import dependencies
 try:    # https://pypi.org/project/pyqt6/
     from PyQt6 import uic, QtGui
 except ImportError or ModuleNotFoundError:
@@ -59,8 +65,6 @@ except ImportError or ModuleNotFoundError:
     print("  Mac:     brew install python3-pil")
     print("  Windows: pip install pillow")
     exit()
-
-version = '0.01'
 
 
 class dmap2m67GUI(QMainWindow):
