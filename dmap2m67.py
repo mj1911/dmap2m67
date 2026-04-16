@@ -75,6 +75,7 @@ class dmap2m67GUI(QMainWindow):
         self.rb_mm.clicked.connect(self.rb_mm_changed)
         self.rb_in.clicked.connect(self.rb_in_changed)
         # TODO: may need to change these to "editingFinished" from "returnPressed"
+        self.le_image_dp.editingFinished.connect(self.validate)
         self.le_target_width.editingFinished.connect(self.targetwidth)
         self.le_target_dp.editingFinished.connect(self.targetdp)
         # don't need any interaction here...
@@ -213,19 +214,10 @@ class dmap2m67GUI(QMainWindow):
             self.statusBar.showMessage("Error opening image file!", 2000)
             return
         self.statusBar.showMessage("Image opened successfully!", 2000)
-        # display image size in pixels
-        img_w, img_h = self.img_l.size
-        self.lb_image_px.setText(f"{img_w}x{img_h}")
-        # now show file since it opened successfully
+        # now show file name since it opened successfully
         self.lb_file_in.setText(tail)
-        # and set the self.full_file_in for later use
+        # and set the self.full_file_in to the full fileName for later use
         self.full_file_in = fileName
-        # get image DPI
-        img_dp = self.m * self.img_l.info.get('dpi', (72, 72))[0]  # default to 72 DPI if not specified
-        img_dp = round(img_dp)  # round to nearest whole number
-        #print(f"Image DPI: {img_dp}")
-        self.le_image_dp.setText(f"{img_dp}")  # assume square pixels
-        # TODO: read file data, update labels?
         # display the source image, retaining aspect ratio
         pixmap = QPixmap(str(fileName))
         if not pixmap.isNull():
@@ -314,12 +306,12 @@ class dmap2m67GUI(QMainWindow):
 
     def rb_mm_changed(self):
         """ Handle change to mm units """
-        self.m = 25.4
+        #self.m = 25.4
         self.validate() # check inputs and update display
         
     def rb_in_changed(self):
         """ Handle change to inch units """
-        self.m = 1.0
+        #self.m = 1.0
         self.validate()
 
     def targetwidth(self):
@@ -379,21 +371,41 @@ class dmap2m67GUI(QMainWindow):
             # attempt to load image
             try:
                 self.img = Image.open(self.full_file_in)
-                #if self.img.mode != 'L':     # convert to grayscale if not already
-                #    self.img_l = self.img.convert('L', colors=999)  # to match le_power_max
+                if self.img.mode != 'L':     # convert to grayscale if not already
+                    self.img_l = self.img.convert('L', colors=999)  # this doesn't work
                 self.imageloaded = True
             except Exception as e:
                 print(f"Error opening image file!: {e}")
                 self.statusBar.showMessage("Error opening image file!", 2000)
                 return False
-        units = 25.4 if self.rb_mm.isChecked() else 1.0
-        x,y = self.img.size
+        # display image size in pixels
+        img_w, img_h = self.img_l.size
+        self.lb_image_px.setText(f"{img_w}x{img_h}")
+        # TODO: some snafu here with units conversion
+        if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert
+            tmp = float(self.le_image_dp.text()) / 25.4
+            self.le_image_dp.setText(f"{tmp:.0f}")
+            tmp = float(self.le_target_dp.text()) / 25.4
+            self.le_target_dp.setText(f"{tmp:.0f}")
+            tmp = float(self.le_target_width.text()) * 25.4
+            self.le_target_width.setText(f"{tmp:.2f}")
+            self.m = 25.4
+        elif self.rb_in.isChecked() and self.m != 1.0:
+            tmp = float(self.le_image_dp.text()) / 25.4
+            self.le_image_dp.setText(f"{tmp:.0f}")
+            tmp = float(self.le_target_dp.text()) / 25.4
+            self.le_target_dp.setText(f"{tmp:.0f}")
+            tmp = float(self.le_target_width.text()) / 25.4
+            self.le_target_width.setText(f"{tmp:.2f}")
+            self.m = 1.0
+
+        x,y = self.img_l.size
         if x <= 0 or y <= 0:
             print("Error: Image has invalid dimensions!")
             self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
             return False
-        imagedpnative = round(self.img.info.get('dpi', (72, 72))[0])  # default to 72 DPI
-        imagedp = int(self.le_image_dp.text())
+        imagedpnative = round(self.img_l.info.get('dpi', (72, 72))[0])  # default to 72 DPI
+        imagedp = round(float(self.le_image_dp.text()))
         if imagedp != imagedpnative:
             print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not match Image DP ({imagedp}).")
             self.statusBar.showMessage("Warning: native image Dot-Pitch does not match entered DP!", 2000)
@@ -403,12 +415,14 @@ class dmap2m67GUI(QMainWindow):
             return False
         #imagew = float(self.le_image_width.text())
         #imageh = float(self.le_image_height.text())
-        # TODO: some snafus here with mm units and DP
-        self.lb_image_width.setText(f"{x * units / imagedp:.2f}")
-        self.lb_image_height.setText(f"{y * units / imagedp:.2f}")
-        targetdp = int(self.le_target_dp.text())
+        width = (x / imagedp) * self.m
+        height = (y / imagedp) * self.m
+        self.lb_image_width.setText(f"{width:.2f}")
+        self.lb_image_height.setText(f"{height:.2f}")
+        targetdp = round(float(self.le_target_dp.text()))
         targetw = float(self.le_target_width.text())
-        self.lb_target_height.setText(f"{targetw * units / targetdp:.2f}")
+        targeth = ((targetw / targetdp) * self.m)
+        self.lb_target_height.setText(f"{targeth:.2f}")
         feedrate = int(self.le_feedrate.text())
         safez = float(self.le_safe_z.text())
         workz = float(self.le_work_z.text())
