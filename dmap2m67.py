@@ -5,6 +5,7 @@
     Mesa hardware PWM. 
 
     image2m67 - Image to M67 G-Code Converter
+    Usage notes and updates: https://github.com/mj1911/dmap2m67
 
     Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
     This app is based on work by:
@@ -394,13 +395,16 @@ class dmap2m67GUI(QMainWindow):
         # display image size in pixels
         img_w, img_h = self.img_l.size
         self.lb_image_px.setText(f"{img_w}x{img_h}")
-        # TODO: some snafu here with units conversion
+        # TODO: some snafu here with units conversion; mm to in works, but
+        # in to mm does not; both DPs to zero, and image width and height
+        # do not change at all, while target width is right but target height 
+        # does not change either.
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
             tmp = float(self.le_image_dp.text()) / 25.4
             self.le_image_dp.setText(f"{tmp:.0f}")
             tmp = float(self.le_target_dp.text()) / 25.4
             self.le_target_dp.setText(f"{tmp:.0f}")
-            tmp = float(self.le_target_width.text()) * 25.4
+            tmp = float(self.le_target_width.text()) / 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
             self.m = 25.4
         elif self.rb_in.isChecked() and self.m != 1.0:  # convert mm to in
@@ -426,11 +430,11 @@ class dmap2m67GUI(QMainWindow):
             self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
             return False
         # check DPI
-        imagedpnative = round(self.img_l.info.get('dpi', (72, 72))[0])  # default to 72 DPI
-        imagedp = round(float(self.le_image_dp.text()))
+        imagedpnative = round(float(self.img_l.info.get('dpi', (72, 72))[0] / self.m))  # default to 72 DPI
+        imagedp = round(float(self.le_image_dp.text())) #  * self.m
         if imagedp != imagedpnative:
             print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not "
-                  f"match Image DP ({imagedp}).  This loses detail.")
+                  f"match selected image: ({imagedp}).  This loses detail.")
             self.statusBar.showMessage("Warning: native image Dot-Pitch does not match target DP!", 2000)
         if imagedp <= 0:
             print("Error: Image DP must be greater than 0!")
@@ -446,13 +450,28 @@ class dmap2m67GUI(QMainWindow):
         # run through calculations to update display of image and target dimensions
         #imagew = float(self.le_image_width.text())
         #imageh = float(self.le_image_height.text())
-        img_width = (x / imagedp) * self.m
-        img_height = (y / imagedp) * self.m
+        if self.rb_in.isChecked():
+            img_width = float(x / imagedp)# * self.m)
+            img_height = float(y / imagedp)# * self.m)
+        else:
+            img_width = float(x / imagedp)# / self.m)
+            img_height = float(y / imagedp)# / self.m)
         self.lb_image_width.setText(f"{img_width:.2f}")
         self.lb_image_height.setText(f"{img_height:.2f}")
-        targetw = float(img_width * imagedp / targetdp) * self.m
+
+        # TODO: if current value of target_width is different than the calculated 
+        # value, then the user changed it, so we should not update it and instead 
+        # use the new value to calculate the target_dp and target_height.  
+        # To do this, target_dp must be a float...
+        dpratio = float(imagedp / targetdp)
+        targetw = float(img_width * dpratio)# * self.m
+        targeth = float(img_height * dpratio)# * self.m
+        # contention here because le_target_width is an input that can be 
+        # changed by the user, but is also calculated from the image size 
+        # and target DP.  For now, we will just update it with the calculated 
+        # value, but in the future we may want to allow the user to override 
+        # this.
         self.le_target_width.setText(f"{targetw:.2f}")
-        targeth = float(img_height * imagedp / targetdp) * self.m
         self.lb_target_height.setText(f"{targeth:.2f}")
         
         feedrate = int(self.le_feedrate.text())
