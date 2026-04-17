@@ -380,7 +380,7 @@
          <string>Input image size, in pixels.</string>
         </property>
         <property name="text">
-         <string>725x235</string>
+         <string>1x1</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -393,7 +393,7 @@
          <string>Image pixel width / dp = physical width</string>
         </property>
         <property name="text">
-         <string>191.82</string>
+         <string>1</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -406,7 +406,7 @@
          <string>Image pixel height / dp = physical height</string>
         </property>
         <property name="text">
-         <string>62.18</string>
+         <string>1</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -416,7 +416,7 @@
       <item row="13" column="1" colspan="2">
        <widget class="QLineEdit" name="le_target_dp">
         <property name="statusTip">
-         <string>Integer target resolution; note any DP other than 1:1 will be interpolated.</string>
+         <string>Integer target resolution; note any image:target DP other than 1:1 will be interpolated.</string>
         </property>
         <property name="text">
          <string>72</string>
@@ -432,7 +432,7 @@
          <string>Float, output width, in physical units.</string>
         </property>
         <property name="text">
-         <string>2.25</string>
+         <string>1</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -445,7 +445,7 @@
          <string>Output height, calculated.</string>
         </property>
         <property name="text">
-         <string>96</string>
+         <string>1</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -558,32 +558,6 @@
       </item>
      </layout>
     </widget>
-   </widget>
-   <widget class="QLabel" name="label_34">
-    <property name="geometry">
-     <rect>
-      <x>510</x>
-      <y>110</y>
-      <width>191</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Source image here...</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_35">
-    <property name="geometry">
-     <rect>
-      <x>460</x>
-      <y>340</y>
-      <width>251</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Intermediate image here...</string>
-    </property>
    </widget>
    <widget class="QLabel" name="label_36">
     <property name="geometry">
@@ -893,9 +867,9 @@
    <widget class="QLabel" name="img_src">
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>455</x>
       <y>10</y>
-      <width>256</width>
+      <width>541</width>
       <height>221</height>
      </rect>
     </property>
@@ -903,7 +877,7 @@
      <enum>QFrame::StyledPanel</enum>
     </property>
     <property name="text">
-     <string>img_src</string>
+     <string>Source Image</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>
@@ -912,9 +886,9 @@
    <widget class="QLabel" name="img_luma">
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>455</x>
       <y>240</y>
-      <width>256</width>
+      <width>541</width>
       <height>221</height>
      </rect>
     </property>
@@ -922,7 +896,7 @@
      <enum>QFrame::StyledPanel</enum>
     </property>
     <property name="text">
-     <string>img_luma</string>
+     <string>Intermediate Image</string>
     </property>
     <property name="alignment">
      <set>Qt::AlignCenter</set>

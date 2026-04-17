@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 #  -*- coding: utf-8 -*-
 
-''' App to convert image to M67 Analog Output GCODE for laser raster, using
+''' App to convert image to M67 Analog Output GCODE for laser raster, for modern
     Mesa hardware PWM. 
 
     image2m67 - Image to M67 G-Code Converter
@@ -57,7 +57,7 @@ from PyQt6.QtCore import QPoint, QSettings, QSize
 from PyQt6.QtGui import QFont, QPixmap
 
 try:    # https://pypi.org/project/pillow/
-    from PIL import Image
+    from PIL import Image, ImageQt
 except ImportError or ModuleNotFoundError:
     print("\nPython Image Library (pillow) missing!  Please install:")
     print("  Debian:  sudo apt install python3-pil")
@@ -86,13 +86,13 @@ class dmap2m67GUI(QMainWindow):
         #self.le_feedrate.editingFinished.connect(self.feedrate)
         #self.le_safe_z.editingFinished.connect(self.safez)
         #self.le_work_z.editingFinished.connect(self.workz)
-        for le in self.findChildren(QLineEdit):
-            if le.objectName().startswith("le_"):
-                le.mousePressEvent = lambda event, line_edit=le: self.le_mousePressEvent(line_edit, event)
         #self.le_power_min.editingFinished.connect(self.powermin)
         #self.le_power_max.editingFinished.connect(self.powermax)
         self.pb_saveas.clicked.connect(self.saveas)
         self.pb_convert.clicked.connect(self.convert)
+        for le in self.findChildren(QLineEdit):
+            if le.objectName().startswith("le_"):
+                le.mousePressEvent = lambda event, line_edit=le: self.le_mousePressEvent(line_edit, event)
 
     def load_settings(self):    
         # Linux & Mac: ~/.config/RDTSC/dmap2m67.conf
@@ -153,6 +153,8 @@ class dmap2m67GUI(QMainWindow):
         self.full_file_out = self.settings.value('file_out')
         head, tail = os.path.split(self.full_file_out)
         self.lb_file_out.setText(tail)
+        # now validate all these settings and update display
+        self.validate()
     
     def save_settings(self):
         self.settings.setValue('window_size', self.size())
@@ -228,6 +230,13 @@ class dmap2m67GUI(QMainWindow):
             scaled_pixmap = pixmap.scaled(self.img_src.size(), 
                             aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
             self.img_src.setPixmap(scaled_pixmap)
+        # display greyscale image
+        imgtmp = ImageQt.ImageQt(self.img_l)
+        pixmap_l = QPixmap.fromImage(imgtmp)
+        if not pixmap_l.isNull():
+            scaled_pixmap_l = pixmap_l.scaled(self.img_luma.size(), 
+                            aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+            self.img_luma.setPixmap(scaled_pixmap_l)
 
     def le_mousePressEvent(self, line_edit, event):
         """Handle mouse press on line edits; if touch enabled, open touch dialog"""
@@ -386,7 +395,7 @@ class dmap2m67GUI(QMainWindow):
         img_w, img_h = self.img_l.size
         self.lb_image_px.setText(f"{img_w}x{img_h}")
         # TODO: some snafu here with units conversion
-        if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert
+        if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
             tmp = float(self.le_image_dp.text()) / 25.4
             self.le_image_dp.setText(f"{tmp:.0f}")
             tmp = float(self.le_target_dp.text()) / 25.4
@@ -394,7 +403,7 @@ class dmap2m67GUI(QMainWindow):
             tmp = float(self.le_target_width.text()) * 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
             self.m = 25.4
-        elif self.rb_in.isChecked() and self.m != 1.0:
+        elif self.rb_in.isChecked() and self.m != 1.0:  # convert mm to in
             tmp = float(self.le_image_dp.text()) / 25.4
             self.le_image_dp.setText(f"{tmp:.0f}")
             tmp = float(self.le_target_dp.text()) / 25.4
@@ -402,31 +411,50 @@ class dmap2m67GUI(QMainWindow):
             tmp = float(self.le_target_width.text()) / 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
             self.m = 1.0
-
+        elif self.rb_mm.isChecked() and self.m == 25.4: # mm but recalculate?
+            pass
+        elif self.rb_in.isChecked() and self.m == 1.0:  # in but recalculate?
+            pass
+        else:
+            print("Error: Cannot determine inch/mm state!")
+            self.statusBar.showMessage("Error: Cannot determine inch/mm state!", 2000)
+            return False
+        # validate image size
         x,y = self.img_l.size
-        if x <= 0 or y <= 0:
+        if x <= 1 or y <= 1:
             print("Error: Image has invalid dimensions!")
             self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
             return False
+        # check DPI
         imagedpnative = round(self.img_l.info.get('dpi', (72, 72))[0])  # default to 72 DPI
         imagedp = round(float(self.le_image_dp.text()))
         if imagedp != imagedpnative:
-            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not match Image DP ({imagedp}).")
-            self.statusBar.showMessage("Warning: native image Dot-Pitch does not match entered DP!", 2000)
+            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not "
+                  f"match Image DP ({imagedp}).  This loses detail.")
+            self.statusBar.showMessage("Warning: native image Dot-Pitch does not match target DP!", 2000)
         if imagedp <= 0:
             print("Error: Image DP must be greater than 0!")
+            self.le_image_dp.setText("1")
             self.statusBar.showMessage("Error: Image DP must be greater than 0!", 2000)
             return False
+        targetdp = round(float(self.le_target_dp.text()))
+        if targetdp <= 0:
+            print("Error: Target DP must be greater than 0!")
+            self.le_target_dp.setText("1")
+            self.statusBar.showMessage("Error: Target DP must be greater than 0!", 2000)
+            return False
+        # run through calculations to update display of image and target dimensions
         #imagew = float(self.le_image_width.text())
         #imageh = float(self.le_image_height.text())
-        width = (x / imagedp) * self.m
-        height = (y / imagedp) * self.m
-        self.lb_image_width.setText(f"{width:.2f}")
-        self.lb_image_height.setText(f"{height:.2f}")
-        targetdp = round(float(self.le_target_dp.text()))
-        targetw = float(self.le_target_width.text())
-        targeth = ((targetw / targetdp) * self.m)
+        img_width = (x / imagedp) * self.m
+        img_height = (y / imagedp) * self.m
+        self.lb_image_width.setText(f"{img_width:.2f}")
+        self.lb_image_height.setText(f"{img_height:.2f}")
+        targetw = float(img_width * imagedp / targetdp) * self.m
+        self.le_target_width.setText(f"{targetw:.2f}")
+        targeth = float(img_height * imagedp / targetdp) * self.m
         self.lb_target_height.setText(f"{targeth:.2f}")
+        
         feedrate = int(self.le_feedrate.text())
         safez = float(self.le_safe_z.text())
         workz = float(self.le_work_z.text())
