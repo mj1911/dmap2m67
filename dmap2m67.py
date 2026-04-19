@@ -14,26 +14,29 @@
        35064-new-laser-build-raster-engraving#342700)
 
     Version 0.01  20260408 - Initial code; main routine by Bruce.
-      * Start design around Qt5; start basic Qt5 GUI.  Rework for PyQt6.
+      * Start basic design around PyQt5; rework for PyQt6.
       * Design import section to alert missing dependencies (pyqt6, pillow.)
       * Implement QSettings to load and save options between runs.
       * Change default font to 12pt for better readability on touch screens.
       * Create touch UI dialog for data entry on touchscreens.
-      * UI controls present, but mostly non-functional at this point.
       * Got converter working, but limited to 256 gray levels due to Pillow's 
         convert('L') method.  Need to do RGB to Luminance conversion ourselves 
         to get more than 8 bits of resolution.
       * TODO: if any M67's are sequentially identical (redundant), omit them!
         Can likely optimize-out irrelevant moves too, reducing output file size.
-    Version 0.02  20260415 - Add image loading, display, and settings validation.
+      * Add image loading, display, and settings validation.
       * TODO: need to re-validate and update display when units are changed, a
         new image is loaded, or when any of the relevant settings are changed.
-      * TODO: img_luma needs a QPixmap to preview the processed image
       * TODO: img_out is a graphicsView to preview the generated GCODE
+      * Get inch and mm units working, including switching between them.
+      * Auto-loads the last image at start if still valid.
+      * Enabled sane limits for most controls.
 '''
 
 import sys
 import os
+
+from more_itertools import last
 
 # ensure only python3 is attempted...
 VERSION = sys.version_info[0]
@@ -83,12 +86,11 @@ class dmap2m67GUI(QMainWindow):
         self.le_image_dp.editingFinished.connect(self.validate)
         self.le_target_width.editingFinished.connect(self.targetwidth)
         self.le_target_dp.editingFinished.connect(self.targetdp)
-        # don't need any interaction here...
-        #self.le_feedrate.editingFinished.connect(self.feedrate)
-        #self.le_safe_z.editingFinished.connect(self.safez)
-        #self.le_work_z.editingFinished.connect(self.workz)
-        #self.le_power_min.editingFinished.connect(self.powermin)
-        #self.le_power_max.editingFinished.connect(self.powermax)
+        self.le_feedrate.editingFinished.connect(self.feedrate)
+        self.le_safe_z.editingFinished.connect(self.safez)
+        self.le_work_z.editingFinished.connect(self.workz)
+        self.le_power_min.editingFinished.connect(self.powermin)
+        self.le_power_max.editingFinished.connect(self.powermax)
         self.pb_saveas.clicked.connect(self.saveas)
         self.pb_convert.clicked.connect(self.convert)
         for le in self.findChildren(QLineEdit):
@@ -124,11 +126,11 @@ class dmap2m67GUI(QMainWindow):
             centerPoint = QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
             qtRectangle.moveCenter(centerPoint)
             self.move(qtRectangle.topLeft())
-        # else restore previous values
+        # else restore previous values to UI
         self.resize(self.settings.value('window_size'))
         self.move(self.settings.value('window_position'))
         self.full_file_in = self.settings.value('file_in')
-        self.imageloaded = False
+        self.speedload = True   # do try to load the last file immediately
         head, tail = os.path.split(self.full_file_in)
         self.lb_file_in.setText(tail)   # update display
         if 'in' == self.settings.value('units'): 
@@ -183,24 +185,28 @@ class dmap2m67GUI(QMainWindow):
         super().closeEvent(event)
 
     def open(self):
-        #print(f"self.full_file_in: {self.full_file_in}")
-        lastdir = self.full_file_in if self.full_file_in else os.getcwd()
-        lastdir = os.path.dirname(lastdir) if os.path.isfile(lastdir) else lastdir
-        #print(f"lastdir: {lastdir}")
-        dialog = QFileDialog(self)
-        dialog.setWindowTitle("Open Image")
-        dialog.setDirectory(lastdir)
-        dialog.setNameFilter("Image Files (*.png *.jpg *.bmp)")
-        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
-        dialog.resize(800, 600)
-        font = QFont()
-        font.setPointSize(12)
-        dialog.setFont(font)
-        dialog.exec()
-        fileName = (dialog.selectedFiles()[0] if dialog.selectedFiles()[0] else "")
-        #print(f'returned filename: {fileName}')
+        fileName = self.full_file_in if self.full_file_in else os.getcwd()
         head, tail = os.path.split(fileName)
-        #print(f'Head: {head}  Tail: {tail}')
+        if not self.speedload:  # for every subsequent open
+            ##print(f"self.full_file_in: {self.full_file_in}")
+            #lastdir = self.full_file_in if self.full_file_in else os.getcwd()
+            #lastdir = os.path.dirname(lastdir) if os.path.isdir(lastdir) else lastdir
+            ##print(f"lastdir: {lastdir}")
+            dialog = QFileDialog(self)
+            dialog.setWindowTitle("Open Image")
+            #dialog.setDirectory(lastdir)
+            dialog.setDirectory(head)
+            dialog.setNameFilter("Image Files (*.png *.jpg *.bmp)")
+            dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
+            dialog.resize(800, 600)
+            font = QFont()
+            font.setPointSize(12)
+            dialog.setFont(font)
+            dialog.exec()
+            fileName = (dialog.selectedFiles()[0] if dialog.selectedFiles()[0] else "")
+            #print(f'returned filename: {fileName}')
+            head, tail = os.path.split(fileName)
+            #print(f'Head: {head}  Tail: {tail}')
         # TODO: validate that file is valid type...
         self.statusBar.showMessage("Opening image file...", 2000)
         # not sure we should actually open it here... because if we do,
@@ -209,10 +215,12 @@ class dmap2m67GUI(QMainWindow):
             self.img = Image.open(fileName)
             if self.img.mode != 'L':     # convert to grayscale if not already
                 self.img_l = self.img.convert('L', colors=999)  # to match le_power_max
-# NOTE THIS DOES NOT WORK! Pillow's convert('L') only gives 256 levels of gray, 
+# NOTE THIS DOES NOT WORK!  Pillow's convert('L') only gives 256 levels of gray, 
 # which is well below what LinuxCNC and Mesa hardware are capable of.
 # We need to do the RGB to Luminance conversion ourselves to get more than 8 
-# bits of resolution!
+# bits of resolution.  While here, we should be able to adjust other aspects of 
+# the image also, such as contrast, brightness, and gamma, to get the best 
+# results for laser...
                 # self.img is the original image
                 # self.img_l is the grayscale version used for processing
             #print("Successfully opened image file!")
@@ -223,7 +231,7 @@ class dmap2m67GUI(QMainWindow):
         self.statusBar.showMessage("Image opened successfully!", 2000)
         # now show file name since it opened successfully
         self.lb_file_in.setText(tail)
-        # and set the self.full_file_in to the full fileName for later use
+        # and set the self.full_file_in for later use
         self.full_file_in = fileName
         # display the source image, retaining aspect ratio
         pixmap = QPixmap(str(fileName))
@@ -231,7 +239,7 @@ class dmap2m67GUI(QMainWindow):
             scaled_pixmap = pixmap.scaled(self.img_src.size(), 
                             aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
             self.img_src.setPixmap(scaled_pixmap)
-        # display greyscale image
+        # display intermediate image
         imgtmp = ImageQt.ImageQt(self.img_l)
         pixmap_l = QPixmap.fromImage(imgtmp)
         if not pixmap_l.isNull():
@@ -331,28 +339,28 @@ class dmap2m67GUI(QMainWindow):
     def targetwidth(self):
         # sane here is the largest dimension of this machine...
         # TODO: make this a setting that can be changed by the user, and saved between runs?
-        largest = 1400.0  # millimeters
-        if float(self.le_target_width.text()) > largest:
-            pass    # could emit a beep for error
+        #largest = 1400.0  # millimeters
+        #if float(self.le_target_width.text()) > largest:
+        #    pass    # could emit a beep for error
         self.validate()
 
     def targetdp(self):
         self.validate()
 
-    def feedrate(self): # these won't change display
-        pass
+    def feedrate(self):
+        self.validate()
 
     def safez(self):
-        pass
+        self.validate()
 
     def workz(self):
-        pass
+        self.validate()
 
     def powermin(self):
-        pass
+        self.validate()
 
     def powermax(self):
-        pass
+        self.validate()
 
     def saveas(self):
         #print(f'full_file_out: {self.full_file_out}')
@@ -381,13 +389,14 @@ class dmap2m67GUI(QMainWindow):
 
     def validate(self):
         """ TODO: Validate all inputs, update display, report issues """
-        if not self.imageloaded:
-            # attempt to load image
+        if self.speedload:
+            # attempt to load image initially
             try:
-                self.img = Image.open(self.full_file_in)
-                if self.img.mode != 'L':     # convert to grayscale if not already
-                    self.img_l = self.img.convert('L', colors=999)  # this doesn't work
-                self.imageloaded = True
+                self.open()   # this attempts to open the last file
+                #self.img = Image.open(self.full_file_in)
+                #if self.img.mode != 'L':     # convert to grayscale if not already
+                #    self.img_l = self.img.convert('L', colors=999)  # this doesn't work
+                self.speedload = False
             except Exception as e:
                 print(f"Error opening image file!: {e}")
                 self.statusBar.showMessage("Error opening image file!", 2000)
@@ -400,17 +409,17 @@ class dmap2m67GUI(QMainWindow):
         # do not change at all, while target width is right but target height 
         # does not change either.
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
-            tmp = float(self.le_image_dp.text()) / 25.4
+            tmp = round(float(self.le_image_dp.text()) / 25.4)
             self.le_image_dp.setText(f"{tmp:.0f}")
-            tmp = float(self.le_target_dp.text()) / 25.4
+            tmp = round(float(self.le_target_dp.text()) / 25.4)
             self.le_target_dp.setText(f"{tmp:.0f}")
-            tmp = float(self.le_target_width.text()) / 25.4
+            tmp = float(self.le_target_width.text()) * 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
             self.m = 25.4
         elif self.rb_in.isChecked() and self.m != 1.0:  # convert mm to in
-            tmp = float(self.le_image_dp.text()) / 25.4
+            tmp = round(float(self.le_image_dp.text()) * 25.4)
             self.le_image_dp.setText(f"{tmp:.0f}")
-            tmp = float(self.le_target_dp.text()) / 25.4
+            tmp = round(float(self.le_target_dp.text()) * 25.4)
             self.le_target_dp.setText(f"{tmp:.0f}")
             tmp = float(self.le_target_width.text()) / 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
@@ -432,10 +441,10 @@ class dmap2m67GUI(QMainWindow):
         # check DPI
         imagedpnative = round(float(self.img_l.info.get('dpi', (72, 72))[0] / self.m))  # default to 72 DPI
         imagedp = round(float(self.le_image_dp.text())) #  * self.m
-        if imagedp != imagedpnative:
-            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) does not "
-                  f"match selected image: ({imagedp}).  This loses detail.")
-            self.statusBar.showMessage("Warning: native image Dot-Pitch does not match target DP!", 2000)
+        if imagedp > imagedpnative:
+            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) is less "
+                  f"than selected image: ({imagedp}).  This loses detail.")
+            self.statusBar.showMessage("Warning: native image Dot-Pitch is less than target DP!", 2000)
         if imagedp <= 0:
             print("Error: Image DP must be greater than 0!")
             self.le_image_dp.setText("1")
@@ -475,11 +484,30 @@ class dmap2m67GUI(QMainWindow):
         self.lb_target_height.setText(f"{targeth:.2f}")
         
         feedrate = int(self.le_feedrate.text())
+        if feedrate <1 or feedrate > 5000:
+            print("Error: Feed rate must be between 1 and 5000!")
+            self.le_feedrate.setText("50")
+            self.statusBar.showMessage("Error: Feed rate must be between 1 and 5000!", 2000)
         safez = float(self.le_safe_z.text())
+        if safez < -100.0 or safez > 100.0:
+            print("Error: Safe Z position must be between -100 and 100!")
+            self.le_safe_z.setText("-5.0")
+            self.statusBar.showMessage("Error: Safe Z position must be between -100 and 100!", 2000)
         workz = float(self.le_work_z.text())
+        if workz < -100.0 or workz > 100.0:
+            print("Error: Work Z position must be between -100 and 100!")
+            self.le_work_z.setText("-8.0")
+            self.statusBar.showMessage("Error: Work Z position must be between -100 and 100!", 2000)
         powermin = int(self.le_power_min.text())
+        if powermin < 0 or powermin > 999:
+            print("Error: Minimum power must be between 0 and 999!")
+            self.le_power_min.setText("0")
+            self.statusBar.showMessage("Error: Minimum power must be between 0 and 999!", 2000)
         powermax = int(self.le_power_max.text())
-
+        if powermax < 0 or powermax > 999:
+            print("Error: Maximum power must be between 0 and 999!")
+            self.le_power_max.setText("999")
+            self.statusBar.showMessage("Error: Maximum power must be between 0 and 999!", 2000)
         return True
 
     def convert(self):
