@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 #  -*- coding: utf-8 -*-
 
-''' App to convert image to M67 Analog Output GCODE for laser raster, for modern
-    Mesa hardware PWM. 
+''' App to convert image to M67 gcode (Analog Output) for laser raster, for
+    modern Mesa hardware PWM.  Not for spindles or lasers connected as spindles!
 
     image2m67 - Image to M67 G-Code Converter
+    Supported image types: pretty much everything except no .svg sadly.
     Usage notes and updates: https://github.com/mj1911/dmap2m67
 
     Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
@@ -13,8 +14,8 @@
       (https://forum.linuxcnc.org/plasma-laser/
        35064-new-laser-build-raster-engraving#342700)
 
-    Version 0.01  20260408 - Initial code; main routine by Bruce.
-      * Start basic design around PyQt5; rework for PyQt6.
+    Version 0.01  20260408 - Initial code; conversion routine by Bruce.
+      * Start basic design around PyQt5; quickly rework for PyQt6.
       * Design import section to alert missing dependencies (pyqt6, pillow.)
       * Implement QSettings to load and save options between runs.
       * Change default font to 12pt for better readability on touch screens.
@@ -25,18 +26,19 @@
       * TODO: if any M67's are sequentially identical (redundant), omit them!
         Can likely optimize-out irrelevant moves too, reducing output file size.
       * Add image loading, display, and settings validation.
-      * TODO: need to re-validate and update display when units are changed, a
-        new image is loaded, or when any of the relevant settings are changed.
+      * TODO: need to re-validate and update display when a new image is loaded.
       * TODO: img_out is a graphicsView to preview the generated GCODE
       * Get inch and mm units working, including switching between them.
       * Auto-loads the last image at start if still valid.
       * Enabled sane limits for most controls.
+      * Increased to three decimal places for inch units, two for mm.
 '''
 
 import sys
 import os
 
-from more_itertools import last
+# where did this come from?
+#from more_itertools import last
 
 # ensure only python3 is attempted...
 VERSION = sys.version_info[0]
@@ -46,7 +48,10 @@ if VERSION != 3:
 
 # try to import dependencies
 try:    # https://pypi.org/project/pyqt6/
-    from PyQt6 import uic, QtGui
+    from PyQt6 import uic, QtGui, QtCore
+    from PyQt6.QtWidgets import QMainWindow, QFileDialog, QDialog, QApplication, QLineEdit
+    from PyQt6.QtCore import QPoint, QSettings, QSize
+    from PyQt6.QtGui import QFont, QPixmap
 except ImportError or ModuleNotFoundError:
     print("\nPyQt6 bindings missing!  Please install:")
     print("  Debian:  sudo apt install python3-pyqt6 libxcb-cursor0")
@@ -54,11 +59,6 @@ except ImportError or ModuleNotFoundError:
     print("  Mac:     brew install pyqt6")
     print("  Windows: pip install pyqt6")
     exit()
-
-from PyQt6 import QtCore
-from PyQt6.QtWidgets import QMainWindow, QFileDialog, QDialog, QApplication, QLineEdit
-from PyQt6.QtCore import QPoint, QSettings, QSize
-from PyQt6.QtGui import QFont, QPixmap
 
 try:    # https://pypi.org/project/pillow/
     from PIL import Image, ImageQt
@@ -74,7 +74,7 @@ except ImportError or ModuleNotFoundError:
 class dmap2m67GUI(QMainWindow):
     def __init__(self):
         super(dmap2m67GUI, self).__init__() # define self as an app
-        main = uic.loadUi("dmap2m67.ui", self)  # load GUI
+        self.main = uic.loadUi("dmap2m67.ui", self)  # load GUI
         #uic.loadUi("dmap2m67.ui", self)  # load GUI
         self.load_settings()    # restore settings
         self.show()     # show main window quickly
@@ -98,7 +98,7 @@ class dmap2m67GUI(QMainWindow):
                 le.mousePressEvent = lambda event, line_edit=le: self.le_mousePressEvent(line_edit, event)
 
     def load_settings(self):    
-        # Linux & Mac: ~/.config/RDTSC/dmap2m67.conf
+        # Linux: ~/.config/RDTSC/dmap2m67.conf
         # Windows: HKCU\Software\RDTSC\dmap2m67
         self.settings = QSettings('RDTSC', 'dmap2m67')
         if not self.settings.contains('window_size'):   # if none, default
@@ -117,7 +117,7 @@ class dmap2m67GUI(QMainWindow):
             self.settings.setValue('vertical', False)
             self.settings.setValue('touch', False)
             self.settings.setValue('file_out', 'FileOut.ngc')
-            # get window metrics for initial centering...
+            # get window metrics for one-time centering...
             qtRectangle = self.frameGeometry()
             centerPoint = QtGui.QGuiApplication.primaryScreen().availableGeometry().center()
             qtRectangle.moveCenter(centerPoint)
@@ -129,6 +129,7 @@ class dmap2m67GUI(QMainWindow):
         # else restore previous values to UI
         self.resize(self.settings.value('window_size'))
         self.move(self.settings.value('window_position'))
+        # and begin restoring all of the settings
         self.full_file_in = self.settings.value('file_in')
         self.speedload = True   # do try to load the last file immediately
         head, tail = os.path.split(self.full_file_in)
@@ -156,7 +157,7 @@ class dmap2m67GUI(QMainWindow):
         self.full_file_out = self.settings.value('file_out')
         head, tail = os.path.split(self.full_file_out)
         self.lb_file_out.setText(tail)
-        # now validate all these settings and update display
+        # now validate all these settings and update rest of display
         self.validate()
     
     def save_settings(self):
@@ -196,7 +197,7 @@ class dmap2m67GUI(QMainWindow):
             dialog.setWindowTitle("Open Image")
             #dialog.setDirectory(lastdir)
             dialog.setDirectory(head)
-            dialog.setNameFilter("Image Files (*.png *.jpg *.bmp)")
+            dialog.setNameFilter("Image Files (*.*)")
             dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
             dialog.resize(800, 600)
             font = QFont()
@@ -225,8 +226,8 @@ class dmap2m67GUI(QMainWindow):
                 # self.img_l is the grayscale version used for processing
             #print("Successfully opened image file!")
         except Exception as e:
-            print(f"Error opening image file!: {e}")
-            self.statusBar.showMessage("Error opening image file!", 2000)
+            print(f"Error opening file!: {e}")
+            self.statusBar.showMessage("Error opening file!", 2000)
             return
         self.statusBar.showMessage("Image opened successfully!", 2000)
         # now show file name since it opened successfully
@@ -246,6 +247,12 @@ class dmap2m67GUI(QMainWindow):
             scaled_pixmap_l = pixmap_l.scaled(self.img_luma.size(), 
                             aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
             self.img_luma.setPixmap(scaled_pixmap_l)
+        # finally, a hack - click the selected units radio button to trigger
+        # validation and update the display.
+        if self.rb_mm.isChecked():
+            self.rb_mm.click()
+        else:
+            self.rb_in.click()
 
     def le_mousePressEvent(self, line_edit, event):
         """Handle mouse press on line edits; if touch enabled, open touch dialog"""
@@ -388,7 +395,7 @@ class dmap2m67GUI(QMainWindow):
         self.full_file_out = fileName
 
     def validate(self):
-        """ TODO: Validate all inputs, update display, report issues """
+        """ Validate all inputs, update display, report issues """
         if self.speedload:
             # attempt to load image initially
             try:
@@ -404,10 +411,7 @@ class dmap2m67GUI(QMainWindow):
         # display image size in pixels
         img_w, img_h = self.img_l.size
         self.lb_image_px.setText(f"{img_w}x{img_h}")
-        # TODO: some snafu here with units conversion; mm to in works, but
-        # in to mm does not; both DPs to zero, and image width and height
-        # do not change at all, while target width is right but target height 
-        # does not change either.
+        # handle mismatches between current and previous units
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
             tmp = round(float(self.le_image_dp.text()) / 25.4)
             self.le_image_dp.setText(f"{tmp:.0f}")
@@ -422,7 +426,7 @@ class dmap2m67GUI(QMainWindow):
             tmp = round(float(self.le_target_dp.text()) * 25.4)
             self.le_target_dp.setText(f"{tmp:.0f}")
             tmp = float(self.le_target_width.text()) / 25.4
-            self.le_target_width.setText(f"{tmp:.2f}")
+            self.le_target_width.setText(f"{tmp:.3f}")
             self.m = 1.0
         elif self.rb_mm.isChecked() and self.m == 25.4: # mm but recalculate?
             pass
@@ -460,28 +464,37 @@ class dmap2m67GUI(QMainWindow):
         #imagew = float(self.le_image_width.text())
         #imageh = float(self.le_image_height.text())
         if self.rb_in.isChecked():
-            img_width = float(x / imagedp)# * self.m)
-            img_height = float(y / imagedp)# * self.m)
+            img_width = float(x / imagedp)
+            img_height = float(y / imagedp)
+            self.lb_image_width.setText(f"{img_width:.3f}")
+            self.lb_image_height.setText(f"{img_height:.3f}")
         else:
-            img_width = float(x / imagedp)# / self.m)
-            img_height = float(y / imagedp)# / self.m)
-        self.lb_image_width.setText(f"{img_width:.2f}")
-        self.lb_image_height.setText(f"{img_height:.2f}")
-
+            img_width = float(x / imagedp)
+            img_height = float(y / imagedp)
+            self.lb_image_width.setText(f"{img_width:.2f}")
+            self.lb_image_height.setText(f"{img_height:.2f}")
+        
         # TODO: if current value of target_width is different than the calculated 
         # value, then the user changed it, so we should not update it and instead 
         # use the new value to calculate the target_dp and target_height.  
         # To do this, target_dp must be a float...
         dpratio = float(imagedp / targetdp)
-        targetw = float(img_width * dpratio)# * self.m
-        targeth = float(img_height * dpratio)# * self.m
+        targetw = float(img_width * dpratio)
+        targeth = float(img_height * dpratio)
         # contention here because le_target_width is an input that can be 
         # changed by the user, but is also calculated from the image size 
         # and target DP.  For now, we will just update it with the calculated 
         # value, but in the future we may want to allow the user to override 
         # this.
-        self.le_target_width.setText(f"{targetw:.2f}")
-        self.lb_target_height.setText(f"{targeth:.2f}")
+        # One way around this would be to have the callback on target_width 
+        # update the target height and target_dp instead of the other way 
+        # around.
+        if self.rb_in.isChecked():
+            self.le_target_width.setText(f"{targetw:.3f}")
+            self.lb_target_height.setText(f"{targeth:.3f}")
+        else:
+            self.le_target_width.setText(f"{targetw:.2f}")
+            self.lb_target_height.setText(f"{targeth:.2f}")
         
         feedrate = int(self.le_feedrate.text())
         if feedrate <1 or feedrate > 5000:
