@@ -29,6 +29,9 @@
    <iconset>
     <normaloff>dmap2m67.ico</normaloff>dmap2m67.ico</iconset>
   </property>
+  <property name="statusTip">
+   <string>v0.1 Preliminary</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
@@ -107,7 +110,7 @@
       <item row="14" column="0">
        <widget class="QLabel" name="label">
         <property name="statusTip">
-         <string>Adjust output size; affects target DP.</string>
+         <string>Adjust output size; affects target DP and target height.</string>
         </property>
         <property name="text">
          <string>Target Width:</string>
@@ -156,7 +159,7 @@
       <item row="8" column="0">
        <widget class="QLabel" name="label_9">
         <property name="statusTip">
-         <string>Native width of source image.</string>
+         <string>Native width of source image at that DP.</string>
         </property>
         <property name="text">
          <string>Image Width:</string>
@@ -169,7 +172,7 @@
       <item row="10" column="0">
        <widget class="QLabel" name="label_12">
         <property name="statusTip">
-         <string>Native height of source image.</string>
+         <string>Native height of source image at that DP.</string>
         </property>
         <property name="text">
          <string>Image Height:</string>
@@ -194,6 +197,9 @@
       </item>
       <item row="22" column="0">
        <widget class="QLabel" name="label_8">
+        <property name="statusTip">
+         <string>This approximately doubles the amount of power into the work.</string>
+        </property>
         <property name="text">
          <string>Also Vertical:</string>
         </property>
@@ -250,7 +256,7 @@
          </size>
         </property>
         <property name="statusTip">
-         <string/>
+         <string>Perform the conversion and save the file.</string>
         </property>
         <property name="text">
          <string>Run Conversion</string>
@@ -292,6 +298,9 @@
       </item>
       <item row="21" column="0">
        <widget class="QLabel" name="label_7">
+        <property name="statusTip">
+         <string>NOTE in this version, this is currently limited internally due to PIL.</string>
+        </property>
         <property name="text">
          <string>Max Power:</string>
         </property>
@@ -331,6 +340,9 @@
       </item>
       <item row="23" column="0">
        <widget class="QLabel" name="label_13">
+        <property name="statusTip">
+         <string>Whole keyboard is not supported (yet?)</string>
+        </property>
         <property name="text">
          <string>Touch:</string>
         </property>
@@ -377,7 +389,7 @@
       <item row="6" column="1" colspan="2">
        <widget class="QLabel" name="lb_image_px">
         <property name="statusTip">
-         <string>Input image size, in pixels.</string>
+         <string>Input image size, in pixels.  More is always better.</string>
         </property>
         <property name="text">
          <string>1x1</string>
@@ -390,10 +402,10 @@
       <item row="8" column="1" colspan="2">
        <widget class="QLabel" name="lb_image_width">
         <property name="statusTip">
-         <string>Image pixel width / dp = physical width</string>
+         <string>Image pixels wide / dp = physical width</string>
         </property>
         <property name="text">
-         <string>1</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -403,10 +415,10 @@
       <item row="10" column="1" colspan="2">
        <widget class="QLabel" name="lb_image_height">
         <property name="statusTip">
-         <string>Image pixel height / dp = physical height</string>
+         <string>Image pixels tall / dp = physical height</string>
         </property>
         <property name="text">
-         <string>1</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -416,7 +428,7 @@
       <item row="13" column="1" colspan="2">
        <widget class="QLineEdit" name="le_target_dp">
         <property name="statusTip">
-         <string>Integer target resolution; note any image:target DP other than 1:1 will be interpolated.</string>
+         <string>Float target resolution; note the lower this is, the less resolution.</string>
         </property>
         <property name="text">
          <string>72</string>
@@ -432,7 +444,7 @@
          <string>Float, output width, in physical units.</string>
         </property>
         <property name="text">
-         <string>1</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -445,7 +457,7 @@
          <string>Output height, calculated.</string>
         </property>
         <property name="text">
-         <string>1</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -468,7 +480,7 @@
       <item row="18" column="1" colspan="2">
        <widget class="QLineEdit" name="le_safe_z">
         <property name="statusTip">
-         <string>Float, distance from work for &quot;safe&quot; (laser off) moves.</string>
+         <string>Float, distance to work for &quot;safe&quot; (laser off) moves.</string>
         </property>
         <property name="text">
          <string>-5.00</string>
@@ -481,7 +493,7 @@
       <item row="19" column="1" colspan="2">
        <widget class="QLineEdit" name="le_work_z">
         <property name="statusTip">
-         <string>Float, distance from work for laser-on moves.  This is the focus distance.</string>
+         <string>Float, distance to work for laser-on moves.  This is the focus distance.</string>
         </property>
         <property name="text">
          <string>-8.00</string>
@@ -546,7 +558,7 @@
       <item row="7" column="1" colspan="2">
        <widget class="QLineEdit" name="le_image_dp">
         <property name="statusTip">
-         <string>Integer image resolution, in dots per unit length.</string>
+         <string>Float image resolution, in dots per unit length.  The higher this is, the more source resolution.</string>
         </property>
         <property name="text">
          <string>72</string>
@@ -562,274 +574,14 @@
    <widget class="QLabel" name="label_36">
     <property name="geometry">
      <rect>
-      <x>470</x>
+      <x>360</x>
       <y>570</y>
-      <width>231</width>
+      <width>341</width>
       <height>21</height>
      </rect>
     </property>
     <property name="text">
-     <string>Output rendition here...</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_38">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>680</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>pb_convert</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_39">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>60</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_file_in</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_40">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>120</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_image_px</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_41">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>190</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_image_width</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_42">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>220</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_image_height</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_45">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>150</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_image_dp</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_47">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>90</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>rb_mm, rb_in</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_49">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>290</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_target_width</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_50">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>320</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_target_height</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_51">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>250</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_target_dp</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_52">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>350</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_feedrate</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_54">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>390</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_safe_z</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_55">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>430</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_work_z</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_56">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>460</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_power_min</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_57">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>500</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>le_power_max</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_58">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>530</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>cb_vertical</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_59">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>600</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>pb_saveas</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_60">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>640</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>lb_file_out</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_37">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>20</y>
-      <width>144</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>pb_open</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_61">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>560</y>
-      <width>301</width>
-      <height>21</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>cb_touch</string>
+     <string>Output rendition here eventually...</string>
     </property>
    </widget>
    <widget class="QGraphicsView" name="img_out">
@@ -842,7 +594,7 @@
      </rect>
     </property>
     <property name="statusTip">
-     <string>The gcode output rendition.</string>
+     <string>Gcode output rendition.</string>
     </property>
    </widget>
    <widget class="QLabel" name="label_46">
@@ -867,11 +619,14 @@
    <widget class="QLabel" name="img_src">
     <property name="geometry">
      <rect>
-      <x>455</x>
+      <x>275</x>
       <y>10</y>
-      <width>541</width>
+      <width>721</width>
       <height>221</height>
      </rect>
+    </property>
+    <property name="statusTip">
+     <string>Unaltered Source image.</string>
     </property>
     <property name="frameShape">
      <enum>QFrame::StyledPanel</enum>
@@ -886,11 +641,14 @@
    <widget class="QLabel" name="img_luma">
     <property name="geometry">
      <rect>
-      <x>455</x>
+      <x>275</x>
       <y>240</y>
-      <width>541</width>
+      <width>721</width>
       <height>221</height>
      </rect>
+    </property>
+    <property name="statusTip">
+     <string>Processed intermediate image.</string>
     </property>
     <property name="frameShape">
      <enum>QFrame::StyledPanel</enum>

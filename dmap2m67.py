@@ -34,6 +34,8 @@
         set target width, and height automatically scales.
       * Tried changing control colors; way too messy, reverted.
       * Changed all DP's to float, with 2/3 digits for in/mm.
+      * TODO: conversion always using 19x11 pixels...
+      * TODO: conversion doesn't make sense of inch units...
 '''
 
 import sys
@@ -78,18 +80,24 @@ class dmap2m67GUI(QMainWindow):
         self.show()     # show main window quickly
         # setup links from control interaction to code
         self.pb_open.clicked.connect(self.open)
+        # lb_file_in
         self.rb_mm.clicked.connect(self.rb_mm_changed)
         self.rb_in.clicked.connect(self.rb_in_changed)
+        # lb_image_px
         # may be able to use self.validate as most of these callbacks
         self.le_image_dp.editingFinished.connect(self.validate)
-        self.le_target_width.editingFinished.connect(self.target_width)
+        # lb_image_width, lb_image_height
         self.le_target_dp.editingFinished.connect(self.target_dp)
+        self.le_target_width.editingFinished.connect(self.target_width)
+        # lb_target_height
         self.le_feedrate.editingFinished.connect(self.feed_rate)
         self.le_safe_z.editingFinished.connect(self.safe_z)
         self.le_work_z.editingFinished.connect(self.work_z)
         self.le_power_min.editingFinished.connect(self.power_min)
         self.le_power_max.editingFinished.connect(self.power_max)
+        # cb_vertical, cb_touch
         self.pb_saveas.clicked.connect(self.saveas)
+        # lb_file_out
         self.pb_convert.clicked.connect(self.convert)
         for le in self.findChildren(QLineEdit):
             if le.objectName().startswith("le_"):
@@ -447,8 +455,8 @@ class dmap2m67GUI(QMainWindow):
         imagedpnative = round(float(self.img_l.info.get('dpi', (72, 72))[0] / self.m))  # default to 72 DPI
         imagedp = float(self.le_image_dp.text())
         if imagedp > imagedpnative:
-            print(f"Warning: Image native Dot-Pitch ({imagedpnative}) is less "
-                  f"than selected image: ({imagedp}).  This loses detail.")
+            print(f"Warning: Image real Dot-Pitch ({imagedpnative}) is less "
+                  f"than chosen: ({imagedp}).  Cannot create detail from nothing.")
             self.statusBar.showMessage("Warning: native image Dot-Pitch is less than target DP!", 2000)
         if imagedp <= 0:
             print("Error: Image DP must be greater than 0!")
