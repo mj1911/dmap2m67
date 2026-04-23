@@ -73,6 +73,7 @@ except ImportError or ModuleNotFoundError:
 
 
 class dmap2m67GUI(QMainWindow):
+    m = 1.0     # inch or metric, set via state of radio buttons
     def __init__(self):
         super(dmap2m67GUI, self).__init__() # define self as an app
         self.main = uic.loadUi("dmap2m67.ui", self)  # load GUI
@@ -542,11 +543,8 @@ class dmap2m67GUI(QMainWindow):
         #cross_hatch = sys.argv[9]
         #output_file = sys.argv[10]
         input_file = self.full_file_in
-# NOTE: need units conversion here!
         target_width_mm = float(self.le_target_width.text())
-        #dpi = int(self.le_target_dp.text())
-# NOTE: unsure if DPI being a float will work...
-        dpi = float(self.le_target_dp.text())
+        dp = float(self.le_target_dp.text())   # changed to float
         feed_rate = int(self.le_feedrate.text())
         safe_z = float(self.le_safe_z.text())
         engrave_z = float(self.le_work_z.text())
@@ -567,29 +565,35 @@ class dmap2m67GUI(QMainWindow):
           orig_w, orig_h = img.size
           
           # Calculate new size
-          pixels_per_mm = dpi / 25.4
+          if self.m == 25.4:                # if already metric,
+              pixels_per_mm = dp           # do not change these two
+              mm_per_pixel = 1/dp
+          else:                             # else if DPI,
+              pixels_per_mm = dp / 25.4    # convert these to mm...
+              target_width_mm /= 25.4
+              mm_per_pixel = 1/(dp / 25.4)
           target_px_w = int(target_width_mm * pixels_per_mm)
           aspect_ratio = orig_h / orig_w
           target_px_h = int(target_px_w * aspect_ratio)
             
           actual_mm_w = target_px_w / pixels_per_mm
           actual_mm_h = target_px_h / pixels_per_mm
-          mm_per_pixel = 25.4 / dpi
-            
+          
           print(f"Image size: {target_px_w}x{target_px_h} pixels")
-          print(f"Physical size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm")
+          print(f"Physical size: {actual_mm_w:.2f}x{actual_mm_h:.2f} mm")
           print(f"mm per pixel: {mm_per_pixel:.3f}")
         
           # Resize
-          # TODO: are there different modes for resize?
+# TODO: are there different image modes for resize?
           img = img.resize((target_px_w, target_px_h))
           if os.name == 'nt':   # windows does not have get_flattened_data()
             pixels = list(img.getdata())
 #            r = list(img.getdata(0))
 #            g = list(img.getdata(1))
 #            b = list(img.getdata(2))
-          else:                 # linux depreciated getdata() before, now?
+          else:                 # some linuxes depreciate getdata()
             pixels = list(img.getdata())
+            #pixels = list(img.get_flattened_data())
 #            r = list(img.getdata(0))
 #            g = list(img.getdata(1))
 #            b = list(img.getdata(2))
@@ -602,10 +606,10 @@ class dmap2m67GUI(QMainWindow):
           # Generate G-code
           with open(output_file, 'w') as f:
             # Header
-            f.write('; dmap2m67 - laser raster engraving by raggielyle and rdtsc\n')
+            f.write('; dmap2m67 - M67 laser raster engraving by raggielyle and rdtsc\n')
             f.write(f'; Image: {os.path.basename(input_file)}\n')
             f.write(f'; Size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm\n')
-            f.write(f'; DPI: {dpi}\n')
+            f.write(f'; DP: {dp}\n')
             f.write(f'; Feed: {feed_rate}\n')
             f.write(f'; Power: {min_power}-{max_power}\n\n')
 
@@ -710,7 +714,7 @@ class dmap2m67GUI(QMainWindow):
                 if x % 50 == 0:
                     print(f" Column {x+1}/{target_px_w}")
             
-            f.write('M67 E1 Q0\n')
+            f.write('M67 E1 Q0\n')  # force laser to off
             # End program
             f.write('\n; --- END ---\n')
             #f.write('M5\n')
@@ -722,7 +726,8 @@ class dmap2m67GUI(QMainWindow):
             # TODO: would be nice to see the size of this file
             # TODO: remove ancillary moves (like G1 with no laser change) to reduce file size?
             # TODO: show optimized file size after removing redundant moves?
-            # Show sample of vertical section (this doesn't seem to work for me)
+            
+            # Show sample of vertical section
             if vertical.lower() == 'y' and os.path.exists(output_file):
               with open(output_file, 'r') as f:
                 lines = f.readlines()
@@ -734,8 +739,8 @@ class dmap2m67GUI(QMainWindow):
                     # Show first 20 lines of vertical section
                     for j in range(i, min(i+20, len(lines))):
                       print(f" {lines[j].rstrip()}")
-                      print("...")
-                  break
+                    print("...")
+                    break
         #    return 0
 
         except Exception as e:
