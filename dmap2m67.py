@@ -82,20 +82,20 @@ class dmap2m67GUI(QMainWindow):
         # setup links from control interaction to code
         self.pb_open.clicked.connect(self.open)
         # lb_file_in
-        self.rb_mm.clicked.connect(self.rb_mm_changed)
-        self.rb_in.clicked.connect(self.rb_in_changed)
-        # lb_image_px
         # may be able to use self.validate as most of these callbacks
+        self.rb_mm.clicked.connect(self.validate)
+        self.rb_in.clicked.connect(self.validate)
+        # lb_image_px
         self.le_image_dp.editingFinished.connect(self.validate)
         # lb_image_width, lb_image_height
-        self.le_target_dp.editingFinished.connect(self.target_dp)
+        self.le_target_dp.editingFinished.connect(self.validate)
         self.le_target_width.editingFinished.connect(self.target_width)
         # lb_target_height
-        self.le_feedrate.editingFinished.connect(self.feed_rate)
-        self.le_safe_z.editingFinished.connect(self.safe_z)
-        self.le_work_z.editingFinished.connect(self.work_z)
-        self.le_power_min.editingFinished.connect(self.power_min)
-        self.le_power_max.editingFinished.connect(self.power_max)
+        self.le_feedrate.editingFinished.connect(self.validate)
+        self.le_safe_z.editingFinished.connect(self.validate)
+        self.le_work_z.editingFinished.connect(self.validate)
+        self.le_power_min.editingFinished.connect(self.validate)
+        self.le_power_max.editingFinished.connect(self.validate)
         # cb_vertical, cb_touch
         self.pb_saveas.clicked.connect(self.saveas)
         # lb_file_out
@@ -151,7 +151,7 @@ class dmap2m67GUI(QMainWindow):
             self.m = 25.4
         self.le_image_dp.setText(self.settings.value('image_dp'))
         self.le_target_width.setText(self.settings.value('target_width'))
-        self.old_le_target_width = self.settings.value('target_width') # for tracking changes
+        #self.old_le_target_width = self.settings.value('target_width') # for tracking changes
         self.le_target_dp.setText(self.settings.value('target_dp'))
         self.le_feedrate.setText(self.settings.value('feed_rate'))
         self.le_safe_z.setText(self.settings.value('safe_z'))
@@ -335,21 +335,21 @@ class dmap2m67GUI(QMainWindow):
         else:
             le_value.setText("-" + current)
 
-    def rb_mm_changed(self):
-        """ Handle change to mm units """
-        #self.m = 25.4
-        self.validate() # check inputs and update display
+#    def rb_mm_changed(self):
+#        """ Handle change to mm units """
+#        #self.m = 25.4
+#        self.validate() # check inputs and update display
         
-    def rb_in_changed(self):
-        """ Handle change to inch units """
-        #self.m = 1.0
-        self.validate()
+#    def rb_in_changed(self):
+#        """ Handle change to inch units """
+#        #self.m = 1.0
+#        self.validate()
 
     def target_width(self):
-        target_w_old = float(self.old_le_target_width) if self.old_le_target_width else 1.0
+        #target_w_old = float(self.old_le_target_width) if self.old_le_target_width else 1.0
         target_w = float(self.le_target_width.text())
-        if target_w == target_w_old:    # if no change
-            return
+        #if target_w == target_w_old:    # if no change
+        #    return
         # recalculate size of target_h
         x,y = self.img_l.size   # image size in pixels
         image_w = float(self.lb_image_width.text())
@@ -368,25 +368,25 @@ class dmap2m67GUI(QMainWindow):
             self.le_target_width.setText(f"{target_w:.2f}")
             self.lb_target_height.setText(f"{target_h:.2f}")
         # update old value for tracking changes
-        self.old_le_target_width = self.le_target_width.text() 
+        #self.old_le_target_width = self.le_target_width.text() 
 
-    def target_dp(self):
-        self.validate()
+#    def target_dp(self):
+#        self.validate()
 
-    def feed_rate(self):
-        self.validate()
+#    def feed_rate(self):
+#        self.validate()
 
-    def safe_z(self):
-        self.validate()
+#    def safe_z(self):
+#        self.validate()
 
-    def work_z(self):
-        self.validate()
+#    def work_z(self):
+#        self.validate()
 
-    def power_min(self):
-        self.validate()
+#    def power_min(self):
+#        self.validate()
 
-    def power_max(self):
-        self.validate()
+#    def power_max(self):
+#        self.validate()
 
     def saveas(self):
         #print(f'full_file_out: {self.full_file_out}')
