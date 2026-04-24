@@ -26,7 +26,7 @@
       * TODO: if any M67's are sequentially identical (redundant), omit them!
         Can likely optimize-out irrelevant moves too, reducing output file size.
       * Add image loading, display, and settings validation.
-      * TODO: img_out is a graphicsView to preview the generated GCODE
+      * TODO: img_out is a graphicsView to preview the actual GCODE
       * Get inch and mm units working, including switching between them.
       * Auto-loads the last image at start if still valid.
       * Enabled sane limits for most controls.
@@ -34,7 +34,6 @@
         set target width, and height automatically scales.
       * Tried changing control colors; way too messy, reverted.
       * Changed all DP's to float, with 2/3 digits for in/mm.
-      * TODO: conversion always using 19x11 pixels...
       * TODO: conversion doesn't make sense of inch units...
 '''
 
@@ -419,8 +418,8 @@ class dmap2m67GUI(QMainWindow):
             self.open()   # this attempts to open the last file
             self.speedload = False
         # display image size in pixels
-        img_w, img_h = self.img_l.size
-        self.lb_image_px.setText(f"{img_w}x{img_h}")
+        x,y = self.img_l.size
+        self.lb_image_px.setText(f"{x}x{y}")
         # handle mismatches between current and previous units
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
             tmp = float(self.le_image_dp.text()) / 25.4
@@ -447,7 +446,6 @@ class dmap2m67GUI(QMainWindow):
             self.statusBar.showMessage("Error: Cannot determine inch/mm state!", 2000)
             return False
         # validate image size
-        x,y = self.img_l.size
         if x <= 1 or y <= 1:
             print("Error: Image has invalid dimensions!")
             self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
@@ -555,13 +553,19 @@ class dmap2m67GUI(QMainWindow):
         
         print(f"Converting: {os.path.basename(input_file)}")
         print(f"Power range: {min_power}-{max_power}")
-
+# TODO: this still writing mm output, even in inch mode...
         try:
           # Load image
-          img = Image.open(input_file)
+          #img = Image.open(input_file)
           # NOTE: eventually want to try process raw RGB data instead of L mode.
-          if img.mode != 'L':
-              img = img.convert('L')
+          #if img.mode != 'L':
+          #    img = img.convert('L')
+          # patch since we should already have the image open...
+          if self.img_l:
+              img = self.img_l
+          else:
+              print('No image loaded!')
+              return
           orig_w, orig_h = img.size
           
           # Calculate new size
@@ -570,7 +574,7 @@ class dmap2m67GUI(QMainWindow):
               mm_per_pixel = 1/dp
           else:                             # else if DPI,
               pixels_per_mm = dp / 25.4    # convert these to mm...
-              target_width_mm /= 25.4
+              target_width_mm *= 25.4
               mm_per_pixel = 1/(dp / 25.4)
           target_px_w = int(target_width_mm * pixels_per_mm)
           aspect_ratio = orig_h / orig_w
@@ -741,12 +745,13 @@ class dmap2m67GUI(QMainWindow):
                       print(f" {lines[j].rstrip()}")
                     print("...")
                     break
+            # TODO: if we wanted to try optimization, here would be the place...
         #    return 0
 
         except Exception as e:
             print(f"\n❌ ERROR: {e}")
-            import traceback
-            traceback.print_exc()
+            #import traceback
+            #traceback.print_exc()
         #    return 1
 # end of raggielyle's code
 
