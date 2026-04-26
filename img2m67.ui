@@ -23,14 +23,14 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>Depth-map to laser PWM (M67 Mesa Analog Out) Converter</string>
+   <string>Image to laser PWM (M67 Mesa Analog Out) Converter</string>
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>dmap2m67.ico</normaloff>dmap2m67.ico</iconset>
+    <normaloff>img2m67.ico</normaloff>img2m67.ico</iconset>
   </property>
   <property name="statusTip">
-   <string>v0.1 Preliminary</string>
+   <string>v0.01 Preliminary</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <widget class="QGroupBox" name="groupBox">
@@ -556,9 +556,9 @@
        </widget>
       </item>
       <item row="7" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_image_dp">
+       <widget class="QLabel" name="lb_image_dp">
         <property name="statusTip">
-         <string>Float image resolution, in dots per unit length.  The higher this is, the more source resolution.</string>
+         <string>Source image resolution, in dots per unit length.  The higher this is, the more source detail.</string>
         </property>
         <property name="text">
          <string>72</string>
@@ -671,7 +671,6 @@
   <tabstop>pb_open</tabstop>
   <tabstop>rb_mm</tabstop>
   <tabstop>rb_in</tabstop>
-  <tabstop>le_image_dp</tabstop>
   <tabstop>le_target_dp</tabstop>
   <tabstop>le_target_width</tabstop>
   <tabstop>le_feedrate</tabstop>

@@ -4,9 +4,9 @@
 ''' App to convert image to M67 gcode (Analog Output) for laser raster, using
     modern Mesa hardware PWM.  Not for spindles or lasers connected as spindles!
 
-    image2m67 - Image to M67 G-Code Converter
+    img2m67 - Image to M67 G-Code Converter
     Supported image types: pretty much everything except no .svg sadly.
-    Usage notes and updates: https://github.com/mj1911/dmap2m67
+    Usage notes and updates: https://github.com/mj1911/img2m67
 
     Copyright (C) <2026-?>  <mj1911/rdtsc and raggielyle1>
     This app is based on work by:
@@ -71,11 +71,14 @@ except ImportError or ModuleNotFoundError:
     exit()
 
 
-class dmap2m67GUI(QMainWindow):
-    m = 1.0     # inch or metric, set via state of radio buttons
+class img2m67GUI(QMainWindow):
+    m = 1.0         # inch or mm, set via state of radio buttons
+    img = Image     # preset PIL image placeholders
+    img_l = Image   # this one the luma version
+
     def __init__(self):
-        super(dmap2m67GUI, self).__init__() # define self as an app
-        self.main = uic.loadUi("dmap2m67.ui", self)  # load GUI
+        super(img2m67GUI, self).__init__() # define self as an app
+        self.main = uic.loadUi("img2m67.ui", self)  # load GUI
         self.load_settings()    # restore settings
         self.show()     # show main window quickly
         # setup links from control interaction to code
@@ -85,7 +88,7 @@ class dmap2m67GUI(QMainWindow):
         self.rb_mm.clicked.connect(self.validate)
         self.rb_in.clicked.connect(self.validate)
         # lb_image_px
-        self.le_image_dp.editingFinished.connect(self.validate)
+        #self.le_image_dp.editingFinished.connect(self.validate)
         # lb_image_width, lb_image_height
         self.le_target_dp.editingFinished.connect(self.validate)
         self.le_target_width.editingFinished.connect(self.target_width)
@@ -104,15 +107,15 @@ class dmap2m67GUI(QMainWindow):
                 le.mousePressEvent = lambda event, line_edit=le: self.le_mousePressEvent(line_edit, event)
 
     def load_settings(self):    
-        # Linux: ~/.config/RDTSC/dmap2m67.conf
-        # Windows: HKCU\Software\RDTSC\dmap2m67
-        self.settings = QSettings('RDTSC', 'dmap2m67')
+        # Linux: ~/.config/RDTSC/img2m67.conf
+        # Windows: HKCU\Software\RDTSC\img2m67
+        self.settings = QSettings('RDTSC', 'img2m67')
         if not self.settings.contains('window_size'):   # if none, default
             self.settings.setValue('window_size', QSize(1000, 745))
             self.settings.setValue('window_position', QPoint(0, 0))
             self.settings.setValue('file_in', 'FileIn.png')
             self.settings.setValue('units', 'in')
-            self.settings.setValue('image_dp', '72.0') # must set these as text
+            #self.settings.setValue('image_dp', '72.0') # must set these as text
             self.settings.setValue('target_dp', '72.0')
             self.settings.setValue('target_width', '2.25') # others are calculated
             self.settings.setValue('feed_rate', '50')
@@ -148,7 +151,7 @@ class dmap2m67GUI(QMainWindow):
             self.rb_in.setChecked(False)
             self.rb_mm.setChecked(True)
             self.m = 25.4
-        self.le_image_dp.setText(self.settings.value('image_dp'))
+        #self.lb_image_dp.setText(self.settings.value('image_dp'))
         self.le_target_width.setText(self.settings.value('target_width'))
         #self.old_le_target_width = self.settings.value('target_width') # for tracking changes
         self.le_target_dp.setText(self.settings.value('target_dp'))
@@ -176,7 +179,7 @@ class dmap2m67GUI(QMainWindow):
         else: 
             units='mm'
         self.settings.setValue('units', units)
-        self.settings.setValue('image_dp', self.le_image_dp.text())
+        #self.settings.setValue('image_dp', self.lb_image_dp.text())
         self.settings.setValue('target_dp', self.le_target_dp.text())
         self.settings.setValue('target_width', self.le_target_width.text())
         self.settings.setValue('feed_rate', self.le_feedrate.text())
@@ -215,8 +218,8 @@ class dmap2m67GUI(QMainWindow):
         self.statusBar.showMessage("Opening image file...", 2000)
         try:
             self.img = Image.open(fileName)
-            if self.img.mode != 'L':     # convert to grayscale if not already
-                self.img_l = self.img.convert('L', colors=999)  # to match le_power_max
+            # if self.img.mode != 'L':     # convert to grayscale if not already
+            self.img_l = self.img.convert('L')
 # NOTE THIS DOES NOT WORK!  Pillow's convert('L') only gives 256 levels of gray, 
 # which is well below what LinuxCNC and Mesa hardware are capable of.
 # We need to do the RGB to Luminance conversion ourselves to get more than 8 
@@ -239,15 +242,22 @@ class dmap2m67GUI(QMainWindow):
         pixmap = QPixmap(str(fileName))
         if not pixmap.isNull():
             scaled_pixmap = pixmap.scaled(self.img_src.size(), 
-                            aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+                aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
             self.img_src.setPixmap(scaled_pixmap)
+        del pixmap
         # display intermediate image
-        imgtmp = ImageQt.ImageQt(self.img_l)
-        pixmap_l = QPixmap.fromImage(imgtmp)
+        pixmap_l = QPixmap.fromImage(ImageQt.ImageQt(self.img_l))
         if not pixmap_l.isNull():
-            scaled_pixmap_l = pixmap_l.scaled(self.img_luma.size(), 
-                            aspectRatioMode = QtCore.Qt.AspectRatioMode.KeepAspectRatio)
+# when changing img_l to img_luma, there was contention with img_luma being a control.
+# now can't call size() on img_l nor img_luma - why? who knows...
+            x = self.img_l.width    
+            y = self.img_l.height
+# doing this results in an improperly-scaled image now...
+# now src DPI not being updated...
+            scaled_pixmap_l = pixmap_l.scaled(x, y, aspectRatioMode = 
+                QtCore.Qt.AspectRatioMode.KeepAspectRatio)
             self.img_luma.setPixmap(scaled_pixmap_l)
+        del pixmap_l
         # finally, a hack - click the selected units radio button to trigger
         # validation and update the display.
         if self.rb_mm.isChecked():
@@ -265,10 +275,10 @@ class dmap2m67GUI(QMainWindow):
     def touch_dialog(self, field, title):
         """Open touch UI dialog for a touched line edit"""
         dialog = QDialog(self)
-        uic.loadUi("dmap2m67-touch.ui", dialog)
+        uic.loadUi("img2m67-touch.ui", dialog)
         dialog.setWindowTitle(title)
 
-        le_value = dialog.findChild(type(self.le_image_dp), "le_value")
+        le_value = dialog.findChild(type(self.le_target_dp), "le_value")
         if le_value is None:
             return
         le_value.setText(field.text())
@@ -352,7 +362,7 @@ class dmap2m67GUI(QMainWindow):
         # recalculate size of target_h
         x,y = self.img_l.size   # image size in pixels
         image_w = float(self.lb_image_width.text())
-        image_dp = float(self.le_image_dp.text())
+        image_dp = float(self.lb_image_dp.text())
         aspect_ratio = float(y / x) # ratio of y to x (less than 1)
         target_h = float(target_w * aspect_ratio)
         # recalculate target_dp
@@ -415,23 +425,33 @@ class dmap2m67GUI(QMainWindow):
     def validate(self):
         """ Validate all inputs, update display, report issues """
         if self.speedload:  # attempt to load image initially
-            self.open()   # this attempts to open the last file
+            self.open()     # this attempts to open the last file
             self.speedload = False
+        # do we have a luma image?
+        try:                # very first time opening, or file deleted,
+            x,y = self.img_l.size
+        except:             # will not have a valid image, so cannot continue
+            return
         # display image size in pixels
-        x,y = self.img_l.size
         self.lb_image_px.setText(f"{x}x{y}")
+        # get source image dpi
+        #srcimagedpi = float(self.img_l.info.get('dpi', (72, 72))[0] / self.m)  # default to 72 DPI
+        srcimagedpi = float(self.img_l.info.get('dpi', (72, 72))[0])
+        srcimagedpm = srcimagedpi / 25.4
         # handle mismatches between current and previous units
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
-            tmp = float(self.le_image_dp.text()) / 25.4
-            self.le_image_dp.setText(f"{tmp:.3f}")
+            #tmp = float(self.lb_image_dp.text()) / 25.4
+            #self.lb_image_dp.setText(f"{tmp:.3f}")
+            self.lb_image_dp.setText(f"{srcimagedpm:.3f}")
             tmp = float(self.le_target_dp.text()) / 25.4
             self.le_target_dp.setText(f"{tmp:.3f}")
             tmp = float(self.le_target_width.text()) * 25.4
             self.le_target_width.setText(f"{tmp:.2f}")
             self.m = 25.4
         elif self.rb_in.isChecked() and self.m != 1.0:  # convert mm to in
-            tmp = float(self.le_image_dp.text()) * 25.4
-            self.le_image_dp.setText(f"{tmp:.2f}")
+            #tmp = float(self.lb_image_dp.text()) * 25.4
+            #self.lb_image_dp.setText(f"{tmp:.2f}")
+            self.lb_image_dp.setText(f"{srcimagedpi:.2f}")
             tmp = float(self.le_target_dp.text()) * 25.4
             self.le_target_dp.setText(f"{tmp:.2f}")
             tmp = float(self.le_target_width.text()) / 25.4
@@ -450,18 +470,19 @@ class dmap2m67GUI(QMainWindow):
             print("Error: Image has invalid dimensions!")
             self.statusBar.showMessage("Error: Image has invalid dimensions!", 2000)
             return False
-        # check DPI
-        imagedpnative = round(float(self.img_l.info.get('dpi', (72, 72))[0] / self.m))  # default to 72 DPI
-        imagedp = float(self.le_image_dp.text())
-        if imagedp > imagedpnative:
-            print(f"Warning: Image real Dot-Pitch ({imagedpnative}) is less "
-                  f"than chosen: ({imagedp}).  Cannot create detail from nothing.")
-            self.statusBar.showMessage("Warning: native image Dot-Pitch is less than target DP!", 2000)
-        if imagedp <= 0:
-            print("Error: Image DP must be greater than 0!")
-            self.le_image_dp.setText("1.0")
-            self.statusBar.showMessage("Error: Image DP must be greater than 0!", 2000)
-            return False
+        # check native DPI against entered
+# decided to make this a label instead... 
+#self.lb_image_dp.setText=(f'{srcimagedp:.2f}')
+        #imagedp = float(self.lb_image_dp.text())
+#        if imagedp > imagedpnative:
+#            print(f"Warning: Image real Dot-Pitch ({imagedpnative}) is less "
+#                  f"than chosen: ({imagedp}).  Cannot create detail from nothing.")
+#            self.statusBar.showMessage("Warning: native image Dot-Pitch is less than target DP!", 2000)
+        #if srcimagedp <= 0:
+        #    print("Error: Image DP must be greater than 0!")
+        #    #self.le_image_dp.setText("1.0")
+        #    self.statusBar.showMessage("Error: Image DP must be greater than 0!", 2000)
+        #    return False
         targetdp = float(self.le_target_dp.text())
         if targetdp <= 0:
             print("Error: Target DP must be greater than 0!")
@@ -470,17 +491,18 @@ class dmap2m67GUI(QMainWindow):
             return False
         # run through calculations to update display of image and target dimensions
         if self.rb_in.isChecked():
-            img_width = float(x / imagedp)
-            img_height = float(y / imagedp)
+            img_width = float(x / srcimagedpi)
+            img_height = float(y / srcimagedpi)
             self.lb_image_width.setText(f"{img_width:.3f}")
             self.lb_image_height.setText(f"{img_height:.3f}")
+            dpratio = float(srcimagedpi / targetdp)
         else:
-            img_width = float(x / imagedp)
-            img_height = float(y / imagedp)
+            img_width = float(x / srcimagedpm)
+            img_height = float(y / srcimagedpm)
             self.lb_image_width.setText(f"{img_width:.2f}")
             self.lb_image_height.setText(f"{img_height:.2f}")
+            dpratio = float(srcimagedpm / targetdp)
         # calculate target dimensions
-        dpratio = float(imagedp / targetdp)
         target_w = float(img_width * dpratio)
         target_h = float(img_height * dpratio)
         if self.rb_in.isChecked():  # three decimals for inches, two for mm
@@ -610,7 +632,7 @@ class dmap2m67GUI(QMainWindow):
           # Generate G-code
           with open(output_file, 'w') as f:
             # Header
-            f.write('; dmap2m67 - M67 laser raster engraving by raggielyle and rdtsc\n')
+            f.write('; img2m67 - M67 laser raster engraving by raggielyle and rdtsc\n')
             f.write(f'; Image: {os.path.basename(input_file)}\n')
             f.write(f'; Size: {actual_mm_w:.1f}x{actual_mm_h:.1f} mm\n')
             f.write(f'; DP: {dp}\n')
@@ -757,10 +779,10 @@ class dmap2m67GUI(QMainWindow):
 
 
 def main():
-    dmap2m64 = QApplication([])
-    window = dmap2m67GUI()
-    dmap2m64.exec()
-    del window, dmap2m64
+    img2m64 = QApplication([])
+    window = img2m67GUI()
+    img2m64.exec()
+    del window, img2m64
 
 if __name__ == '__main__':
     main()
