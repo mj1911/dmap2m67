@@ -34,7 +34,10 @@
         set target width, and height automatically scales.
       * Tried changing control colors; way too messy, reverted.
       * Changed all DP's to float, with 2/3 digits for in/mm.
-      * TODO: conversion doesn't make sense of inch units...
+      * TODO: lb_img_dp and le_target_dp disagree
+      * TODO: startup in mm units, lb_image_dp defaults to 72?
+      * TODO: img_l is not scaled correctly in img_luma
+      * TODO: conversion drops 1 pixel on each axis...
 '''
 
 import sys
@@ -430,7 +433,7 @@ class img2m67GUI(QMainWindow):
         # do we have a luma image?
         try:                # very first time opening, or file deleted,
             x,y = self.img_l.size
-        except:             # will not have a valid image, so cannot continue
+        except AttributeError:  # will not have a valid image, so cannot continue
             return
         # display image size in pixels
         self.lb_image_px.setText(f"{x}x{y}")
