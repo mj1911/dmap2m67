@@ -75,7 +75,7 @@
        <height>712</height>
       </rect>
      </property>
-     <layout class="QGridLayout" name="gridLayout" rowminimumheight="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" columnminimumwidth="140,60,0">
+     <layout class="QGridLayout" name="gridLayout" rowminimumheight="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0" columnminimumwidth="140,60,0">
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
       </property>
@@ -97,46 +97,29 @@
       <property name="verticalSpacing">
        <number>6</number>
       </property>
-      <item row="6" column="0">
-       <widget class="QLabel" name="label_29">
-        <property name="text">
-         <string>Image px:</string>
+      <item row="29" column="0" colspan="3">
+       <widget class="QPushButton" name="pb_convert">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>45</height>
+         </size>
         </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="14" column="0">
-       <widget class="QLabel" name="label">
         <property name="statusTip">
-         <string>Adjust output size; affects target DP and target height.</string>
+         <string>Perform the conversion and save the file.</string>
         </property>
         <property name="text">
-         <string>Target Width:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <string>Run Conversion</string>
         </property>
        </widget>
       </item>
-      <item row="18" column="0">
-       <widget class="QLabel" name="label_4">
-        <property name="text">
-         <string>Safe Z:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="25" column="0" colspan="3">
-       <widget class="QLabel" name="lb_file_out">
+      <item row="18" column="1" colspan="2">
+       <widget class="QLabel" name="lb_target_height">
         <property name="statusTip">
-         <string>Name of the file to save.</string>
+         <string>Output height, calculated.</string>
         </property>
         <property name="text">
-         <string>FileOut.ngc</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -156,110 +139,26 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="label_9">
+      <item row="6" column="1" colspan="2">
+       <widget class="QLabel" name="lb_image_px">
         <property name="statusTip">
-         <string>Native width of source image at that DP.</string>
+         <string>Input image size, in pixels.  More is always better.</string>
         </property>
         <property name="text">
-         <string>Image Width:</string>
+         <string>1x1</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="20" column="0">
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>Feed Rate:</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="0">
-       <widget class="QLabel" name="label_12">
-        <property name="statusTip">
-         <string>Native height of source image at that DP.</string>
-        </property>
-        <property name="text">
-         <string>Image Height:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="15" column="0">
-       <widget class="QLabel" name="label_31">
-        <property name="statusTip">
-         <string>Target height, in physical units.</string>
-        </property>
-        <property name="text">
-         <string>Target Height:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="22" column="0">
-       <widget class="QLabel" name="label_8">
-        <property name="statusTip">
-         <string>This approximately doubles the amount of power into the work.</string>
-        </property>
-        <property name="text">
-         <string>Also Vertical:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="19" column="0">
-       <widget class="QLabel" name="label_5">
-        <property name="text">
-         <string>Work Z:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="0" column="0" colspan="3">
-       <widget class="QPushButton" name="pb_open">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>45</height>
-         </size>
-        </property>
-        <property name="statusTip">
-         <string>Choose input image to open.</string>
-        </property>
-        <property name="text">
-         <string>Open Image</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="label_10">
-        <property name="statusTip">
-         <string>Dot-pitch of source image, per inch or mm.</string>
-        </property>
-        <property name="text">
-         <string>Image DP:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="26" column="0" colspan="3">
-       <widget class="QPushButton" name="pb_convert">
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>45</height>
-         </size>
-        </property>
-        <property name="statusTip">
-         <string>Perform the conversion and save the file.</string>
-        </property>
-        <property name="text">
-         <string>Run Conversion</string>
         </property>
        </widget>
       </item>
@@ -276,40 +175,20 @@
         </property>
        </widget>
       </item>
-      <item row="17" column="0">
-       <widget class="QLabel" name="label_3">
-        <property name="text">
-         <string>Feed Rate:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="20" column="0">
-       <widget class="QLabel" name="label_6">
-        <property name="text">
-         <string>Min Power:</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="21" column="0">
-       <widget class="QLabel" name="label_7">
+      <item row="8" column="1" colspan="2">
+       <widget class="QLabel" name="lb_image_width">
         <property name="statusTip">
-         <string>NOTE in this version, this is currently limited internally due to PIL.</string>
+         <string>Image pixels wide / dp = physical width</string>
         </property>
         <property name="text">
-         <string>Max Power:</string>
+         <string>1.00</string>
         </property>
         <property name="alignment">
-         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+         <set>Qt::AlignCenter</set>
         </property>
        </widget>
       </item>
-      <item row="24" column="0" colspan="3">
+      <item row="27" column="0" colspan="3">
        <widget class="QPushButton" name="pb_saveas">
         <property name="minimumSize">
          <size>
@@ -322,6 +201,32 @@
         </property>
         <property name="text">
          <string>Save As</string>
+        </property>
+       </widget>
+      </item>
+      <item row="17" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_target_width">
+        <property name="statusTip">
+         <string>Float, output width, in physical units.</string>
+        </property>
+        <property name="text">
+         <string>1.00</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="25" column="1" colspan="2">
+       <widget class="QCheckBox" name="cb_vertical">
+        <property name="statusTip">
+         <string>Also do a vertical pass; otherwise only horizontal.</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
         </property>
        </widget>
       </item>
@@ -338,13 +243,163 @@
         </property>
        </widget>
       </item>
-      <item row="23" column="0">
+      <item row="24" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_power_max">
+        <property name="statusTip">
+         <string>Maximum power to use; LinuxCNC/Mesa do 12-bit PWM/48kHz; 999 gives 1k intensities with few digits.</string>
+        </property>
+        <property name="text">
+         <string>999</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="label_12">
+        <property name="statusTip">
+         <string>Native height of source image at that DP.</string>
+        </property>
+        <property name="text">
+         <string>Image Height:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1" colspan="2">
+       <widget class="QLabel" name="lb_image_dp">
+        <property name="statusTip">
+         <string>Source image resolution, in dots per unit length.  The higher this is, the more source detail.</string>
+        </property>
+        <property name="text">
+         <string>72</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="26" column="0">
        <widget class="QLabel" name="label_13">
         <property name="statusTip">
          <string>Whole keyboard is not supported (yet?)</string>
         </property>
         <property name="text">
          <string>Touch:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="label_10">
+        <property name="statusTip">
+         <string>Dot-pitch of source image, per inch or mm.</string>
+        </property>
+        <property name="text">
+         <string>Image DP:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="21" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_safe_z">
+        <property name="statusTip">
+         <string>Float, distance to work for &quot;safe&quot; (laser off) moves.</string>
+        </property>
+        <property name="text">
+         <string>-5.00</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0">
+       <widget class="QLabel" name="label_14">
+        <property name="statusTip">
+         <string>The resulting distance between M1 instructions.</string>
+        </property>
+        <property name="text">
+         <string>Result Pitch:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="label_29">
+        <property name="text">
+         <string>Image px:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1" colspan="2">
+       <widget class="QLabel" name="lb_image_height">
+        <property name="statusTip">
+         <string>Image pixels tall / dp = physical height</string>
+        </property>
+        <property name="text">
+         <string>1.00</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="25" column="0">
+       <widget class="QLabel" name="label_8">
+        <property name="statusTip">
+         <string>This approximately doubles the amount of power into the work.</string>
+        </property>
+        <property name="text">
+         <string>Also Vertical:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="28" column="0" colspan="3">
+       <widget class="QLabel" name="lb_file_out">
+        <property name="statusTip">
+         <string>Name of the file to save.</string>
+        </property>
+        <property name="text">
+         <string>FileOut.ngc</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="23" column="0">
+       <widget class="QLabel" name="label_6">
+        <property name="text">
+         <string>Min Power:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="17" column="0">
+       <widget class="QLabel" name="label">
+        <property name="statusTip">
+         <string>Adjust output size; affects target DP and target height.</string>
+        </property>
+        <property name="text">
+         <string>Target Width:</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -367,58 +422,101 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="2">
-       <widget class="QRadioButton" name="rb_in">
-        <property name="maximumSize">
+      <item row="26" column="1" colspan="2">
+       <widget class="QCheckBox" name="cb_touch">
+        <property name="statusTip">
+         <string>Popup a keypad numeric entry for touch screens.</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="checked">
+         <bool>false</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="22" column="0">
+       <widget class="QLabel" name="label_5">
+        <property name="text">
+         <string>Work Z:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="21" column="0">
+       <widget class="QLabel" name="label_4">
+        <property name="text">
+         <string>Safe Z:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="24" column="0">
+       <widget class="QLabel" name="label_7">
+        <property name="statusTip">
+         <string>NOTE in this version, this is currently limited internally due to PIL.</string>
+        </property>
+        <property name="text">
+         <string>Max Power:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="23" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_power_min">
+        <property name="statusTip">
+         <string>Integer, minimum power to use, generally 0 for totally off.</string>
+        </property>
+        <property name="text">
+         <string>0</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="18" column="0">
+       <widget class="QLabel" name="label_31">
+        <property name="statusTip">
+         <string>Target height, in physical units.</string>
+        </property>
+        <property name="text">
+         <string>Target Height:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="0" colspan="3">
+       <widget class="QPushButton" name="pb_open">
+        <property name="minimumSize">
          <size>
-          <width>60</width>
-          <height>16777215</height>
+          <width>0</width>
+          <height>45</height>
          </size>
         </property>
         <property name="statusTip">
-         <string>Units: Inches</string>
+         <string>Choose input image to open.</string>
         </property>
         <property name="text">
-         <string>In</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
+         <string>Open Image</string>
         </property>
        </widget>
       </item>
-      <item row="6" column="1" colspan="2">
-       <widget class="QLabel" name="lb_image_px">
+      <item row="20" column="1" colspan="2">
+       <widget class="QLineEdit" name="le_feedrate">
         <property name="statusTip">
-         <string>Input image size, in pixels.  More is always better.</string>
+         <string>Float, movement rate in units/min.  Note slower = more power into work.</string>
         </property>
         <property name="text">
-         <string>1x1</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1" colspan="2">
-       <widget class="QLabel" name="lb_image_width">
-        <property name="statusTip">
-         <string>Image pixels wide / dp = physical width</string>
-        </property>
-        <property name="text">
-         <string>1.00</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="1" colspan="2">
-       <widget class="QLabel" name="lb_image_height">
-        <property name="statusTip">
-         <string>Image pixels tall / dp = physical height</string>
-        </property>
-        <property name="text">
-         <string>1.00</string>
+         <string>50</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
@@ -438,59 +536,20 @@
         </property>
        </widget>
       </item>
-      <item row="14" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_target_width">
+      <item row="8" column="0">
+       <widget class="QLabel" name="label_9">
         <property name="statusTip">
-         <string>Float, output width, in physical units.</string>
+         <string>Native width of source image at that DP.</string>
         </property>
         <property name="text">
-         <string>1.00</string>
+         <string>Image Width:</string>
         </property>
         <property name="alignment">
-         <set>Qt::AlignCenter</set>
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
         </property>
        </widget>
       </item>
-      <item row="15" column="1" colspan="2">
-       <widget class="QLabel" name="lb_target_height">
-        <property name="statusTip">
-         <string>Output height, calculated.</string>
-        </property>
-        <property name="text">
-         <string>1.00</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="17" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_feedrate">
-        <property name="statusTip">
-         <string>Float, movement rate in units/min.  Note slower = more power into work.</string>
-        </property>
-        <property name="text">
-         <string>50</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="18" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_safe_z">
-        <property name="statusTip">
-         <string>Float, distance to work for &quot;safe&quot; (laser off) moves.</string>
-        </property>
-        <property name="text">
-         <string>-5.00</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="19" column="1" colspan="2">
+      <item row="22" column="1" colspan="2">
        <widget class="QLineEdit" name="le_work_z">
         <property name="statusTip">
          <string>Float, distance to work for laser-on moves.  This is the focus distance.</string>
@@ -503,65 +562,32 @@
         </property>
        </widget>
       </item>
-      <item row="20" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_power_min">
+      <item row="5" column="2">
+       <widget class="QRadioButton" name="rb_in">
+        <property name="maximumSize">
+         <size>
+          <width>60</width>
+          <height>16777215</height>
+         </size>
+        </property>
         <property name="statusTip">
-         <string>Integer, minimum power to use, generally 0 for totally off.</string>
+         <string>Units: Inches</string>
         </property>
         <property name="text">
-         <string>0</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="21" column="1" colspan="2">
-       <widget class="QLineEdit" name="le_power_max">
-        <property name="statusTip">
-         <string>Maximum power to use; LinuxCNC/Mesa do 12-bit PWM/48kHz; 999 gives 1k intensities with few digits.</string>
-        </property>
-        <property name="text">
-         <string>999</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-       </widget>
-      </item>
-      <item row="22" column="1" colspan="2">
-       <widget class="QCheckBox" name="cb_vertical">
-        <property name="statusTip">
-         <string>Also do a vertical pass; otherwise only horizontal.</string>
-        </property>
-        <property name="text">
-         <string/>
+         <string>In</string>
         </property>
         <property name="checked">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
        </widget>
       </item>
-      <item row="23" column="1" colspan="2">
-       <widget class="QCheckBox" name="cb_touch">
+      <item row="15" column="1" colspan="2">
+       <widget class="QLabel" name="lb_width_pitch">
         <property name="statusTip">
-         <string>Popup a keypad numeric entry for touch screens.</string>
+         <string>Lower is finer detail.</string>
         </property>
         <property name="text">
-         <string/>
-        </property>
-        <property name="checked">
-         <bool>false</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1" colspan="2">
-       <widget class="QLabel" name="lb_image_dp">
-        <property name="statusTip">
-         <string>Source image resolution, in dots per unit length.  The higher this is, the more source detail.</string>
-        </property>
-        <property name="text">
-         <string>72</string>
+         <string>0.1234</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>

@@ -34,10 +34,15 @@
         set target width, and height automatically scales.
       * Tried changing control colors; way too messy, reverted.
       * Changed all DP's to float, with 2/3 digits for in/mm.
-      * TODO: lb_img_dp and le_target_dp disagree
+      * TODO: opening image, DPI is read but lb_image_dp is not updated...
+      * TODO: le_target_dp is 72 on first image open, but target width is 6.944
+        instead of 1.667?
+      * TODO: lb_image_dp and le_target_dp disagree when converted
       * TODO: startup in mm units, lb_image_dp defaults to 72?
       * TODO: img_l is not scaled correctly in img_luma
       * TODO: conversion drops 1 pixel on each axis...
+      * TODO: introduced a 'lb_width_pitch' in the .ui, but programattic access
+        is spotty at best - sometimes it works, sometimes not!  Grrrr
 '''
 
 import sys
@@ -83,7 +88,7 @@ class img2m67GUI(QMainWindow):
         super(img2m67GUI, self).__init__() # define self as an app
         self.main = uic.loadUi("img2m67.ui", self)  # load GUI
         self.load_settings()    # restore settings
-        self.show()     # show main window quickly
+        self.show()     # show main window
         # setup links from control interaction to code
         self.pb_open.clicked.connect(self.open)
         # lb_file_in
@@ -93,6 +98,8 @@ class img2m67GUI(QMainWindow):
         # lb_image_px
         #self.le_image_dp.editingFinished.connect(self.validate)
         # lb_image_width, lb_image_height
+        # lb_width_pitch
+        self.lb_width_pitch.setText('0.000')  # for some reason, this needed
         self.le_target_dp.editingFinished.connect(self.validate)
         self.le_target_width.editingFinished.connect(self.target_width)
         # lb_target_height
@@ -154,7 +161,7 @@ class img2m67GUI(QMainWindow):
             self.rb_in.setChecked(False)
             self.rb_mm.setChecked(True)
             self.m = 25.4
-        #self.lb_image_dp.setText(self.settings.value('image_dp'))
+        self.lb_image_dp.setText(self.settings.value('image_dp'))
         self.le_target_width.setText(self.settings.value('target_width'))
         #self.old_le_target_width = self.settings.value('target_width') # for tracking changes
         self.le_target_dp.setText(self.settings.value('target_dp'))
@@ -182,7 +189,7 @@ class img2m67GUI(QMainWindow):
         else: 
             units='mm'
         self.settings.setValue('units', units)
-        #self.settings.setValue('image_dp', self.lb_image_dp.text())
+        self.settings.setValue('image_dp', self.lb_image_dp.text())
         self.settings.setValue('target_dp', self.le_target_dp.text())
         self.settings.setValue('target_width', self.le_target_width.text())
         self.settings.setValue('feed_rate', self.le_feedrate.text())
@@ -370,12 +377,15 @@ class img2m67GUI(QMainWindow):
         target_h = float(target_w * aspect_ratio)
         # recalculate target_dp
         targetdp = (target_w / image_w) * image_dp
-        targetdp = (image_dp / targetdp) * image_dp
+        #targetdp = (image_dp / targetdp) * image_dp
+        move_pitch = float(1/targetdp)
         if self.rb_in.isChecked():
+            self.lb_width_pitch.setText(f"{move_pitch:.4f}")
             self.le_target_dp.setText(f'{targetdp:.2f}')
             self.le_target_width.setText(f"{target_w:.3f}")
             self.lb_target_height.setText(f"{target_h:.3f}")
         else:
+            self.lb_width_pitch.setText(f"{move_pitch:.3f}")
             self.le_target_dp.setText(f'{targetdp:.3f}')
             self.le_target_width.setText(f"{target_w:.2f}")
             self.lb_target_height.setText(f"{target_h:.2f}")
@@ -440,25 +450,25 @@ class img2m67GUI(QMainWindow):
         # get source image dpi
         #srcimagedpi = float(self.img_l.info.get('dpi', (72, 72))[0] / self.m)  # default to 72 DPI
         srcimagedpi = float(self.img_l.info.get('dpi', (72, 72))[0])
-        srcimagedpm = srcimagedpi / 25.4
+        srcimagedpm = float(srcimagedpi / 25.4)
         # handle mismatches between current and previous units
         if self.rb_mm.isChecked() and self.m != 25.4:   # need to convert in to mm
-            #tmp = float(self.lb_image_dp.text()) / 25.4
-            #self.lb_image_dp.setText(f"{tmp:.3f}")
             self.lb_image_dp.setText(f"{srcimagedpm:.3f}")
-            tmp = float(self.le_target_dp.text()) / 25.4
-            self.le_target_dp.setText(f"{tmp:.3f}")
-            tmp = float(self.le_target_width.text()) * 25.4
-            self.le_target_width.setText(f"{tmp:.2f}")
+            target_dp = float(self.le_target_dp.text()) / 25.4
+            self.le_target_dp.setText(f"{target_dp:.3f}")
+            target_width = float(self.le_target_width.text()) * 25.4
+            self.le_target_width.setText(f"{target_width:.2f}")
+            move_pitch = float(1/target_dp)
+            self.lb_width_pitch.setText(f"{move_pitch:.3f}")
             self.m = 25.4
         elif self.rb_in.isChecked() and self.m != 1.0:  # convert mm to in
-            #tmp = float(self.lb_image_dp.text()) * 25.4
-            #self.lb_image_dp.setText(f"{tmp:.2f}")
             self.lb_image_dp.setText(f"{srcimagedpi:.2f}")
-            tmp = float(self.le_target_dp.text()) * 25.4
-            self.le_target_dp.setText(f"{tmp:.2f}")
-            tmp = float(self.le_target_width.text()) / 25.4
-            self.le_target_width.setText(f"{tmp:.3f}")
+            target_dp = float(self.le_target_dp.text()) * 25.4
+            self.le_target_dp.setText(f"{target_dp:.2f}")
+            target_width = float(self.le_target_width.text()) / 25.4
+            self.le_target_width.setText(f"{target_width:.3f}")
+            move_pitch = float(1/target_dp)
+            self.lb_width_pitch.setText(f"{move_pitch:.4f}")
             self.m = 1.0
         elif self.rb_mm.isChecked() and self.m == 25.4: # mm but recalculate?
             pass
